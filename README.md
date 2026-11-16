@@ -1,218 +1,79 @@
-# SLCR Progress Tracker
+# SLCR Progress Tracker (Next.js)
 
 Daily progress tracking for the project **Decision Support System for Water Resource Management**,
 Smart Laboratory on Clean Rivers (SLCR), IIT (BHU) Varanasi.
 
-A self-hosted web application. It needs no internet services, no Claude account and no cloud
-subscription: it runs on any Windows, Linux or macOS computer with Python, and all data stays in
-one database file on that computer.
+**To put it online, follow [DEPLOY_VERCEL.md](DEPLOY_VERCEL.md).**
 
-## What it does
+## Features
 
-**Staff** (each signs in with their own username and password)
-- Log daily progress: date, hours, location, work category, task status, title, work carried out,
-  outputs, plan for the next day, issues or support needed. Several entries per day are allowed.
-- See only their own entries and the PI's remarks on them. They cannot see anyone else's records.
-- Edit or delete their own entries until the PI reviews them. Reviewed entries are locked.
-- Upload a profile photo, update their details, change their password.
-- Download their own report as PDF or CSV, or open a print view.
-
-**Administrator (PI)**
-- Team overview: who reported today, hours this month, days reported, streaks, and a 14-day
-  attendance strip for every staff member.
-- Progress log with filters (person, dates, category, status, review state), hours-per-day chart and
-  hours-by-category breakdown.
-- Review each entry: *Mark reviewed* or *Request revision* with a remark the staff member sees.
-- Reports for any staff member and any period: **PDF** (letterhead, photo, summary, working days
-  without an entry, every entry with PI remarks, signature lines), a **print view** for the
-  browser's print dialog, and **CSV** for Excel.
-- Staff accounts: add people, reset passwords, deactivate leavers (their records are kept), and add
-  a second administrator such as a Co-PI.
+- **Staff** log daily progress (date, hours, location, category, status, title, work done, outputs,
+  next-day plan, issues), see only their own records and the PI's remarks, edit entries until they are
+  reviewed, upload a profile photo, and download their own report.
+- **Administrator (PI)** sees everyone: team overview with today's reporting status, hours, streaks
+  and a 14-day attendance strip; progress log with filters and charts; review entries (mark reviewed or
+  request revision with a remark); PDF, print view and CSV reports for any person and period; staff
+  account management; JSON backup.
 
 ## Privacy and security
 
-- Every page and download checks on the server who is signed in. A staff member asking for another
-  person's entry, photo or report gets "not found". Automated tests in `tests/` check this.
-- Passwords are stored as salted hashes, never in plain text. New accounts get a temporary password
-  that must be changed at first sign-in. A password reset signs the person out everywhere.
-- Repeated wrong passwords lock that username for 15 minutes (configurable in `config.py`).
-- All forms are protected against cross-site request forgery; pages send strict security headers.
-- An audit log records sign-ins, entry changes, reviews and account changes (`audit_log` table).
+- Every page, action and download checks on the server who is signed in. Staff asking for another
+  person's entry, photo or report get "not found"; a tampered form cannot change another person's data.
+- Passwords are bcrypt hashes. New accounts get a temporary password that must be changed at first
+  sign-in. Password resets sign the person out everywhere. Five wrong passwords lock a username for 15 minutes.
+- Sign-in uses a signed, HTTP-only cookie. Forms are protected by Next.js's built-in origin checks.
+- The first administrator can only be created with the secret `SETUP_KEY`, and only once.
+- An audit log records sign-ins, entry changes, reviews, reports and account changes.
 
-## Requirements
+## Technology
 
-- Python 3.10 or newer (https://www.python.org/downloads/)
-- About 50 MB of disk space, plus space for photos and records (small)
-
-## Quick start on one computer
-
-**Windows:** double-click `run_windows.bat`.
-**Linux / macOS:** run `./run_linux.sh` in a terminal.
-
-The first run installs the required packages, then asks you to create the administrator account
-and prints a temporary password for each of the five staff in the roster:
-
-```
-Username   Temporary password   Name
-rajat      ••••••••••           Mr. Rajat Saxena
-rajk       ••••••••••           Mr. Raj Kumar
-gaurav     ••••••••••           Mr. Gaurav Kumar
-anas       ••••••••••           Mr. Anas
-akash      ••••••••••           Dr. Akash Tiwar
-```
-
-Note these down and give each person their own username and password privately. Then open
-http://127.0.0.1:8000 and sign in as the administrator.
-
-### Manual setup (any platform)
-
-```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate      Linux/macOS: source .venv/bin/activate
-pip install -r requirements.txt
-python manage.py init --with-roster     # creates database, admin and staff accounts
-python app.py                           # starts the app on http://127.0.0.1:8000
-```
-
-## Letting staff use it from their own computers
-
-By default the app only accepts connections from the computer it runs on. To serve the lab:
-
-### Option A: a lab computer on the campus network
-
-Linux / macOS:
-
-```bash
-HOST=0.0.0.0 PORT=8000 python app.py
-```
-
-Windows (Command Prompt, inside the project folder with the environment activated):
-
-```bat
-set HOST=0.0.0.0
-python app.py
-```
-
-Staff then open `http://<that-computer's-IP-address>:8000`. Allow port 8000 through the computer's
-firewall, and keep the computer switched on during working hours.
-
-### Option B: a Linux server with HTTPS (recommended for long-term use)
-
-Ask the institute's computer centre for a server or virtual machine and, ideally, a hostname such as
-`slcr-progress.iitbhu.ac.in` with an HTTPS certificate.
-
-1. Copy the project to `/opt/slcr-tracker`, then:
-
-   ```bash
-   cd /opt/slcr-tracker
-   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-   .venv/bin/python manage.py init --with-roster
-   ```
-
-2. Run it as a service (`/etc/systemd/system/slcr-tracker.service`):
-
-   ```ini
-   [Unit]
-   Description=SLCR Progress Tracker
-   After=network.target
-
-   [Service]
-   User=www-data
-   WorkingDirectory=/opt/slcr-tracker
-   Environment=HOST=127.0.0.1 PORT=8000 SLCR_SECURE_COOKIES=1
-   ExecStart=/opt/slcr-tracker/.venv/bin/waitress-serve --host=127.0.0.1 --port=8000 --threads=8 app:app
-   Restart=always
-
-   [Install]
-   WantedBy=multi-user.target
-   ```
-
-   ```bash
-   sudo chown -R www-data /opt/slcr-tracker/instance
-   sudo systemctl enable --now slcr-tracker
-   ```
-
-3. Put nginx in front for HTTPS (`/etc/nginx/sites-available/slcr-tracker`):
-
-   ```nginx
-   server {
-       listen 443 ssl;
-       server_name slcr-progress.iitbhu.ac.in;
-       ssl_certificate     /etc/ssl/certs/slcr.crt;
-       ssl_certificate_key /etc/ssl/private/slcr.key;
-       client_max_body_size 10m;
-       location / {
-           proxy_pass http://127.0.0.1:8000;
-           proxy_set_header Host $host;
-           proxy_set_header X-Forwarded-For $remote_addr;
-           proxy_set_header X-Forwarded-Proto $scheme;
-       }
-   }
-   server { listen 80; server_name slcr-progress.iitbhu.ac.in; return 301 https://$host$request_uri; }
-   ```
-
-   Set `SLCR_SECURE_COOKIES=1` (as above) whenever the app is served over HTTPS.
-
-Do not expose the app on the open internet over plain HTTP: passwords would travel unencrypted.
-
-## Backups
-
-Everything lives in the `instance/` folder: `tracker.db` (all accounts and entries), `uploads/`
-(photos) and `secret_key`.
-
-```bash
-python manage.py backup        # writes backups/<date-time>/ with the database and photos
-```
-
-Run it weekly (for example with Windows Task Scheduler or a cron job such as
-`0 19 * * 5 cd /opt/slcr-tracker && .venv/bin/python manage.py backup`) and copy the `backups`
-folder to another drive. To restore, stop the app and copy the backed-up files back into `instance/`.
-
-## Everyday administration
-
-| Task | Where |
+| Part | Technology |
 |---|---|
-| Add a staff member | Staff accounts → Add an account (or `python manage.py add-user`) |
-| Someone forgot their password | Staff accounts → Manage → Reset password (or `python manage.py reset-password <username>`) |
-| Administrator locked out | `python manage.py reset-password <admin-username>` on the server |
-| Someone leaves the project | Staff accounts → Manage → Deactivate account |
-| Add a Co-PI with full view | Staff accounts → Add an account → Role: Administrator |
+| Framework | Next.js 16 (App Router, React Server Components, Server Actions), TypeScript |
+| Database | PostgreSQL (Neon on Vercel) via `postgres` |
+| Sign-in | `bcryptjs` password hashing, `jose` signed session cookies |
+| PDF reports | `jspdf` + `jspdf-autotable` |
+| Hosting | Vercel (functions run in the Singapore region, set in `vercel.json`) |
 
-## Customising
+All dates are worked out in Indian Standard Time (`TIMEZONE` in `lib/config.ts`), so "today" is
+correct even though the servers run on UTC.
 
-Edit `config.py` and restart the app to change the lab and project names, the roster, designations,
-work categories, locations, task statuses, which weekdays count as working days, and the security
-limits. Colours are in `static/style.css` (the `:root` block) and `static/print.css`.
-
-## Known limitations
-
-- The PDF uses the standard Helvetica font, so text typed in Hindi or another non-Latin script shows
-  as boxes in the PDF. The **print view** and **CSV** display Hindi correctly; use the print view's
-  "Save as PDF" for such reports.
-- SQLite comfortably serves a lab of dozens of users. For hundreds of concurrent users, move to
-  PostgreSQL.
-- There is no email notification. Staff see the PI's remarks the next time they sign in.
-
-## Project structure
+## Project layout
 
 ```
-app.py            web application: routes, access control, summaries, charts
-reports.py        PDF and CSV report builders
-manage.py         setup, accounts and backup commands
-config.py         lab, project, roster and list settings
-schema.sql        database tables
-templates/        HTML pages
-static/           stylesheet, print stylesheet, icon
-tests/            automated checks (python tests/test_app.py)
-instance/         created on first run: database, photos, secret key (keep private, back up)
+app/(auth)/        sign-in and first-time setup pages
+app/(app)/         staff pages (entry, my-progress, profile) and admin pages (admin/...)
+app/(print)/       printable report page
+app/reports/       PDF and CSV downloads
+app/photo/         staff photos (owner and admins only)
+app/admin/backup/  JSON backup (admins only)
+app/actions.ts     every form submission, each re-checking permissions
+lib/               settings (config.ts), database, sign-in, dates and summaries, reports
+components/        shared UI pieces and forms
+tests/e2e.cjs      browser tests of the whole app
 ```
 
-## Running the tests
+## Running on your own computer (optional, for developers)
+
+Needs Node.js 20+ and a Postgres database (a free Neon database works).
 
 ```bash
-python tests/test_app.py
+npm install
+cp .env.example .env.local      # fill in DATABASE_URL, SESSION_SECRET, SETUP_KEY
+npm run dev                     # http://localhost:3000  → /setup on first run
 ```
 
-The tests create a throwaway database and check that staff cannot read or change each other's
-entries, photos or reports, that admin pages are closed to staff, and that reviews, password
-changes, lockouts and reports work.
+For local testing over plain http with `npm run build && npm start`, also set `INSECURE_COOKIES=1`.
+
+## Tests
+
+With the app running against an **empty** database:
+
+```bash
+npm i -D playwright && npx playwright install chromium
+BASE_URL=http://127.0.0.1:3000 SETUP_KEY=... DATABASE_URL=... node tests/e2e.cjs
+```
+
+37 checks cover setup, sign-in, forced password change, entries, photos, staff-to-staff privacy
+(pages, downloads, photos, admin pages and a tampered form), reviews and locking, reports, backup,
+password reset, deactivation and lockout.

@@ -1,11 +1,4 @@
-"""SLCR Progress Tracker - daily progress tracking for project staff.
 
-A self-hosted Flask application. Staff log daily progress and see only
-their own records; administrators (the PI) see everyone, review entries
-and download printable reports.
-
-Run `python manage.py init` once before starting the app.
-"""
 import datetime as dt
 import functools
 import os

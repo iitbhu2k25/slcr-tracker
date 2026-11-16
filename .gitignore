@@ -1,5 +1,9 @@
-.venv/
-__pycache__/
-instance/
-backups/
-*.pyc
+node_modules/
+.next/
+out/
+.env
+.env*.local
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+tests/output/
