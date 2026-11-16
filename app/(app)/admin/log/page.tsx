@@ -5,7 +5,7 @@ import { CatBars, Empty, Flash, Presets } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { CATEGORIES, STATUSES } from "@/lib/config";
 import { publicUser, staffUsers } from "@/lib/data";
-import { db } from "@/lib/db";
+import { getEntriesInRange } from "@/lib/filedb";
 import { hrs, needsReview, param, rangeFromParams, sortEntriesDesc, type SearchParams } from "@/lib/dates";
 import type { Entry } from "@/lib/types";
 
@@ -23,16 +23,14 @@ export default async function AdminLog({ searchParams }: { searchParams: Promise
 
   const staff = await staffUsers(true);
   const owners = new Map(staff.map((u) => [u.id, publicUser(u)]));
-  const sql = await db();
-  let rows: Entry[] = await sql<Entry[]>`
-    SELECT * FROM entries
-    WHERE date >= ${from} AND date <= ${to}
-      ${uid ? sql`AND user_id = ${uid}` : sql``}
-      ${CATEGORIES.includes(cat) ? sql`AND category = ${cat}` : sql``}
-      ${STATUSES.includes(status) ? sql`AND status = ${status}` : sql``}
-      ${review === "reviewed" || review === "revision" ? sql`AND review_status = ${review}` : sql``}
-    ORDER BY date DESC, created_at DESC`;
-  rows = rows.filter((r) => owners.has(r.user_id)).sort(sortEntriesDesc);
+  let rows = await getEntriesInRange(from, to);
+  rows = rows.filter((r) =>
+    owners.has(r.user_id) &&
+    (!uid || r.user_id === uid) &&
+    (!CATEGORIES.includes(cat) || r.category === cat) &&
+    (!STATUSES.includes(status) || r.status === status) &&
+    (review !== "reviewed" && review !== "revision" || r.review_status === review),
+  ).sort(sortEntriesDesc);
   if (review === "pending") rows = rows.filter(needsReview);
 
   const hours = rows.reduce((s, r) => s + Number(r.hours), 0);

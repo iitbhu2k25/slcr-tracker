@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { EntryForm } from "@/components/forms";
 import { StaffSidebar } from "@/components/staff-sidebar";
 import { requireStaff } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { findEntryById } from "@/lib/filedb";
 import { fmtLong, todayISO } from "@/lib/dates";
 import { withMsg } from "@/lib/messages";
 import type { Entry } from "@/lib/types";
@@ -13,9 +13,8 @@ export default async function EditEntryPage({ params }: { params: Promise<{ id: 
   const user = await requireStaff();
   const id = Number((await params).id);
   if (!Number.isInteger(id)) notFound();
-  const sql = await db();
-  const [e] = await sql<Entry[]>`SELECT * FROM entries WHERE id = ${id} AND user_id = ${user.id}`;
-  if (!e) notFound();
+  const e = await findEntryById(id);
+  if (!e || e.user_id !== user.id) notFound();
   if (e.review_status === "reviewed") redirect(withMsg("/my-progress", "locked"));
   const today = todayISO();
   return (

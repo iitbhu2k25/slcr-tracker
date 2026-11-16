@@ -276,6 +276,12 @@ export async function allEntries(): Promise<StoredEntry[]> {
   );
 }
 
+export async function getEntriesInRange(from: string, to: string): Promise<Entry[]> {
+  return getDb().entries
+    .filter(e => e.date >= from && e.date <= to)
+    .map(toEntry);
+}
+
 // --- Login failures ---
 
 export async function recordLoginFailure(key: string): Promise<void> {
