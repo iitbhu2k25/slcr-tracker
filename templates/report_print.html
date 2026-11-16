@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Progress report · {{ user.name }} · {{ frm|fdate }} to {{ to|fdate }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='print.css') }}">
+<script src="{{ url_for('static', filename='print.js') }}" defer></script>
+</head>
+<body>
+<div class="toolbar no-print"><button id="print-btn" type="button">Print / Save as PDF</button><span>Use your browser's print dialog. Choose “Save as PDF” to keep a copy.</span></div>
+<div class="sheet">
+  <header class="letterhead">
+    <div><div class="lab">{{ cfg.LAB }}</div><div>{{ cfg.INSTITUTE }}</div><div>Project: {{ cfg.PROJECT }}</div></div>
+    <div class="right"><div class="doc">PROGRESS REPORT</div><div>{{ frm|fdate }} to {{ to|fdate }}</div></div>
+  </header>
+
+  <section class="person">
+    <table class="info">
+      <tr><th colspan="2" class="name">{{ user.name }}</th></tr>
+      <tr><td>Designation</td><td>{{ user.designation or '-' }}</td></tr>
+      <tr><td>Employee / project ID</td><td>{{ user.emp_code or '-' }}</td></tr>
+      <tr><td>Joined project</td><td>{{ user.joined_on|fdate or '-' }}</td></tr>
+      <tr><td>Reporting period</td><td>{{ frm|fdate }} to {{ to|fdate }}</td></tr>
+      <tr><td>Report generated</td><td>{{ generated|fstamp }}</td></tr>
+    </table>
+    {% if user.photo %}<img class="photo" src="{{ url_for('photo', user_id=user.id) }}" alt="">{% endif %}
+  </section>
+
+  <h2>Summary</h2>
+  <table class="grid">
+    <tr><td>Working days (up to today)</td><td class="num">{{ sm.working_days }}</td><td>Total hours logged</td><td class="num">{{ sm.hours|hrs }}</td></tr>
+    <tr><td>Days with a progress entry</td><td class="num">{{ sm.days_reported }}</td><td>Avg. hours per reported working day</td><td class="num">{{ sm.avg|hrs }}</td></tr>
+    <tr><td>Days on leave</td><td class="num">{{ sm.leave_days }}</td><td>Task entries</td><td class="num">{{ sm.tasks }}</td></tr>
+    <tr><td>Working days not reported</td><td class="num">{{ sm.missing|length }}</td><td>Tasks completed</td><td class="num">{{ sm.completed }}</td></tr>
+    <tr><td>Entries reviewed by PI</td><td class="num">{{ sm.reviewed }} / {{ sm.tasks }}</td><td>Revision requested</td><td class="num">{{ sm.revision }}</td></tr>
+  </table>
+
+  {% if sm.by_cat %}
+  <h2>Hours by work category</h2>
+  <table class="grid">
+    <thead><tr><th>Category</th><th class="num">Hours</th><th class="num">Share</th></tr></thead>
+    {% for k, v in sm.by_cat %}<tr><td>{{ k }}</td><td class="num">{{ v|hrs }}</td><td class="num">{{ ((v / sm.hours * 100)|round|int) if sm.hours else 0 }}%</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+
+  {% if sm.missing %}
+  <h2>Working days without an entry</h2>
+  <p class="missing">{% for d in sm.missing %}{{ d|fdate }}{{ ', ' if not loop.last }}{% endfor %}</p>
+  {% endif %}
+
+  <h2>Daily progress entries</h2>
+  <table class="grid entries">
+    <thead><tr><th>Date</th><th>Category</th><th>Work carried out</th><th class="num">Hrs</th><th>Status</th><th>PI review</th></tr></thead>
+    <tbody>
+    {% for e in rows %}
+    <tr>
+      <td class="nowrap">{{ e.date|fdate }}<br><span class="muted">{{ (e.date|fday)[:3] }}</span></td>
+      <td>{{ e.category }}<br><span class="muted">{{ e.location }}</span></td>
+      <td><strong>{{ e.title }}</strong><div class="pre">{{ e.work }}</div>{% if e.outputs %}<div class="pre"><em>Outputs:</em> {{ e.outputs }}</div>{% endif %}{% if e.next_plan %}<div class="pre"><em>Next:</em> {{ e.next_plan }}</div>{% endif %}{% if e.issues %}<div class="pre"><em>Issues:</em> {{ e.issues }}</div>{% endif %}</td>
+      <td class="num">{{ e.hours|hrs }}</td>
+      <td>{{ e.status }}</td>
+      <td>{% if e.review_status == 'reviewed' %}Reviewed{% elif e.review_status == 'revision' %}Revision requested{% else %}Not reviewed{% endif %}{% if e.review_remark %}<div class="pre">{{ e.review_remark }}</div>{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6">No entries in this period.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <section class="signatures">
+    <div><div class="line"></div>Signature of employee<br>{{ user.name }}</div>
+    <div><div class="line"></div>Signature of Principal Investigator<br>Date: ______________</div>
+  </section>
+  <footer class="pagefoot">{{ cfg.LAB }} · {{ cfg.PROJECT }}</footer>
+</div>
+</body>
+</html>

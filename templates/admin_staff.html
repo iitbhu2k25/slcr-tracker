@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar with context %}
+{% block title %}Staff accounts{% endblock %}
+{% block content %}
+<section class="page-head"><div><p class="eyebrow">Staff accounts</p><h1>Who can sign in</h1></div></section>
+{% if new_credentials %}
+<div class="creds" role="status"><strong>Account created for {{ new_credentials.name }}</strong>
+<span>Give these details to them in person or by a private message. The password is shown only once; they will be asked to change it at first sign-in.</span>
+<span>Username <code>{{ new_credentials.username }}</code> &nbsp; Temporary password <code>{{ new_credentials.password }}</code></span></div>
+{% endif %}
+<section class="panel">
+  <div class="table-wrap"><table class="list">
+    <thead><tr><th>Person</th><th>Username</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+    <tr>
+      <td><div class="row">{{ avatar(u) }}<div><strong>{{ u.name }}</strong><br><span class="muted small">{{ u.designation }}</span></div></div></td>
+      <td class="mono">{{ u.username }}</td>
+      <td>{{ 'Administrator' if u.role == 'admin' else 'Staff' }}</td>
+      <td>{% if not u.active %}<span class="pill bad">Deactivated</span>{% elif u.must_change_pw %}<span class="pill warn">Temporary password</span>{% else %}<span class="pill ok">Active</span>{% endif %}</td>
+      <td class="small">{{ u.last_login|fstamp or 'Never' }}</td>
+      <td><a class="btn sm" href="{{ url_for('admin_staff_edit', user_id=u.id) }}">Manage</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+<form class="panel stack" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <h2>Add an account</h2>
+  <div class="grid2">
+    <label for="name">Full name with title <span class="req">*</span><input id="name" name="name" required placeholder="e.g. Mr. Gaurav Kumar"></label>
+    <label for="username">Username <span class="req">*</span><span class="hint">Letters, numbers, dots or underscores</span><input id="username" name="username" required autocapitalize="none" placeholder="e.g. gaurav"></label>
+    <label for="designation">Designation<select id="designation" name="designation">{% for d in cfg.DESIGNATIONS %}<option>{{ d }}</option>{% endfor %}</select></label>
+    <label for="role">Role<select id="role" name="role"><option value="staff">Staff: sees only their own records</option><option value="admin">Administrator: sees everyone (e.g. Co-PI)</option></select></label>
+  </div>
+  <div class="actions"><button class="btn primary">Create account</button></div>
+  <p class="muted small">A temporary password is generated automatically and shown once after you create the account.</p>
+</form>
+{% endblock %}

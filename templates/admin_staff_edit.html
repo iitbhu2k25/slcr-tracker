@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar with context %}
+{% block title %}{{ user.name }}{% endblock %}
+{% block content %}
+<section class="page-head"><div class="row" style="flex-direction:row;gap:14px;align-items:center">{{ avatar(user, 'lg') }}<div><p class="eyebrow">Manage account</p><h1>{{ user.name }}</h1></div></div><a class="btn" href="{{ url_for('admin_staff') }}">Back to staff accounts</a></section>
+{% if new_credentials %}
+<div class="creds" role="status"><strong>New temporary password for {{ new_credentials.name }}</strong>
+<span>Share it privately. It is shown only once and must be changed at the next sign-in. Any session they had open has been signed out.</span>
+<span>Username <code>{{ new_credentials.username }}</code> &nbsp; Temporary password <code>{{ new_credentials.password }}</code></span></div>
+{% endif %}
+<form class="panel stack" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="save">
+  <h2>Details</h2>
+  <div class="grid2">
+    <label for="name">Full name with title <span class="req">*</span><input id="name" name="name" value="{{ user.name }}" required></label>
+    <label for="designation">Designation<select id="designation" name="designation">{% set opts = cfg.DESIGNATIONS if user.designation in cfg.DESIGNATIONS or not user.designation else [user.designation] + cfg.DESIGNATIONS %}{% for d in opts %}<option {{ 'selected' if user.designation == d }}>{{ d }}</option>{% endfor %}</select></label>
+    <label for="emp_code">Employee / project ID<input id="emp_code" name="emp_code" value="{{ user.emp_code }}"></label>
+    <label for="joined_on">Date of joining<input type="date" id="joined_on" name="joined_on" value="{{ user.joined_on }}"></label>
+    <label for="email">Email<input type="email" id="email" name="email" value="{{ user.email }}"></label>
+    <label for="phone">Phone<input id="phone" name="phone" value="{{ user.phone }}"></label>
+  </div>
+  <div class="actions"><button class="btn primary">Save details</button></div>
+</form>
+<section class="panel stack">
+  <h2>Access</h2>
+  <p class="muted small">Username <span class="mono">{{ user.username }}</span> · {{ 'Administrator' if user.role == 'admin' else 'Staff' }} · {{ 'Active' if user.active else 'Deactivated' }}{% if user.last_login %} · last sign-in {{ user.last_login|fstamp }}{% endif %}</p>
+  <div class="actions">
+    <form method="post" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="reset_password"><button class="btn">Reset password</button></form>
+    {% if user.id != me.id %}
+    <form method="post" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="action" value="toggle_active"><button class="btn {{ 'danger' if user.active }}">{{ 'Deactivate account' if user.active else 'Reactivate account' }}</button></form>
+    {% endif %}
+    {% if user.role == 'staff' %}<a class="btn" href="{{ url_for('admin_log', uid=user.id, preset='month') }}">Open progress log</a>{% endif %}
+  </div>
+  <p class="muted small">Deactivating stops the person signing in. Their past entries stay in reports.</p>
+</section>
+{% endblock %}

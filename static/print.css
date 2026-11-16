@@ -1,0 +1,37 @@
+@page{size:A4;margin:14mm 13mm 16mm}
+*{box-sizing:border-box}
+body{margin:0;background:#e9eef0;color:#13242b;font:10.5pt/1.45 "Segoe UI",Arial,Helvetica,sans-serif}
+.toolbar{position:sticky;top:0;background:#13242b;color:#fff;padding:10px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:13px}
+.toolbar button{background:#0d6a7c;color:#fff;border:0;border-radius:6px;padding:8px 14px;font:600 13px inherit;cursor:pointer}
+.sheet{background:#fff;max-width:210mm;margin:16px auto;padding:14mm 13mm;box-shadow:0 2px 12px rgb(0 0 0/.12)}
+.letterhead{background:#0d6a7c;color:#fff;padding:10px 14px;display:flex;justify-content:space-between;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:9.5pt}
+.letterhead .lab{font-weight:700;font-size:13pt}
+.letterhead .right{text-align:right}
+.letterhead .doc{font-weight:700;font-size:11pt;letter-spacing:.04em}
+.person{display:flex;justify-content:space-between;gap:16px;margin:14px 0 6px}
+.info{border-collapse:collapse}
+.info td{padding:2px 14px 2px 0}
+.info td:first-child{color:#56676f}
+.info .name{text-align:left;font-size:14pt;padding-bottom:6px}
+.photo{width:30mm;height:30mm;object-fit:cover;border:1px solid #d5dfe3}
+h2{font-size:11pt;margin:14px 0 6px}
+table.grid{width:100%;border-collapse:collapse;font-size:9pt}
+table.grid td,table.grid th{border:1px solid #d5dfe3;padding:4px 6px;vertical-align:top;text-align:left}
+table.grid thead th{background:#0d6a7c;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+table.grid .num{text-align:right;white-space:nowrap}
+table.entries{font-size:8.5pt}
+table.entries thead{display:table-header-group}
+table.entries tr{page-break-inside:avoid}
+.pre{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px}
+.muted{color:#56676f}
+.nowrap{white-space:nowrap}
+.missing{font-size:9pt;color:#56676f}
+.signatures{display:flex;justify-content:space-between;gap:20mm;margin-top:22mm;page-break-inside:avoid;font-size:9.5pt}
+.signatures > div{width:60mm}
+.signatures .line{border-top:1px solid #56676f;margin-bottom:4px}
+.pagefoot{margin-top:10mm;font-size:8pt;color:#56676f;border-top:1px solid #d5dfe3;padding-top:4px}
+@media print{
+  body{background:#fff}
+  .no-print{display:none}
+  .sheet{margin:0;padding:0;box-shadow:none;max-width:none}
+}

@@ -1,0 +1,25 @@
+{% from "_macros.html" import mark %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · {{ cfg.APP_NAME }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+</head>
+<body>
+<div class="auth wrap">
+  <form class="panel" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="brand"><span class="mark">{{ mark() }}</span><span><span class="eyebrow">{{ cfg.LAB }}</span><br><span class="proj">{{ cfg.APP_NAME }}</span></span></div>
+    <p class="muted small">{{ cfg.PROJECT }} · {{ cfg.INSTITUTE }}</p>
+    {% for cat, msg in get_flashed_messages(with_categories=true) %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+    {% if error %}<div class="errors" role="alert">{{ error }}</div>{% endif %}
+    <label for="username">Username<input id="username" name="username" autocomplete="username" autocapitalize="none" required autofocus value="{{ request.form.username or '' }}"></label>
+    <label for="password">Password<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+    <button class="btn primary">Sign in</button>
+    <p class="muted small">Forgotten your password? Ask the Principal Investigator to reset it.</p>
+  </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,43 @@
+{% from "_macros.html" import mark, avatar with context %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ cfg.APP_NAME }}{% endblock %} · {{ cfg.APP_NAME }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+</head>
+<body>
+<header class="topbar"><div class="wrap">
+  <a class="brand" href="{{ url_for('home') }}"><span class="mark">{{ mark() }}</span><span><span class="eyebrow">SLCR · IIT (BHU) Varanasi · Daily progress</span><br><span class="proj">{{ cfg.PROJECT }}</span></span></a>
+  {% if me %}
+  <div class="who">
+    <div class="meta"><div class="n">{{ me.name }}</div><span class="role">{{ 'Admin · PI' if me.role == 'admin' else (me.designation or 'Staff') }}</span></div>
+    {{ avatar(me) }}
+    <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn sm">Sign out</button></form>
+  </div>
+  {% endif %}
+</div></header>
+{% if me and not me.must_change_pw %}
+<nav class="tabs" aria-label="Sections"><div class="wrap">
+{% set ep = request.endpoint %}
+{% if me.role == 'admin' %}
+  <a class="tab" href="{{ url_for('admin_overview') }}" {% if ep == 'admin_overview' %}aria-current="page"{% endif %}>Team overview</a>
+  <a class="tab" href="{{ url_for('admin_log') }}" {% if ep == 'admin_log' %}aria-current="page"{% endif %}>Progress log</a>
+  <a class="tab" href="{{ url_for('admin_reports') }}" {% if ep == 'admin_reports' %}aria-current="page"{% endif %}>Reports</a>
+  <a class="tab" href="{{ url_for('admin_staff') }}" {% if ep in ('admin_staff','admin_staff_edit') %}aria-current="page"{% endif %}>Staff accounts</a>
+  <a class="tab" href="{{ url_for('profile') }}" {% if ep in ('profile','change_password') %}aria-current="page"{% endif %}>My account</a>
+{% else %}
+  <a class="tab" href="{{ url_for('staff_entry') }}" {% if ep in ('staff_entry','staff_edit') %}aria-current="page"{% endif %}>Daily entry</a>
+  <a class="tab" href="{{ url_for('staff_history') }}" {% if ep == 'staff_history' %}aria-current="page"{% endif %}>My progress</a>
+  <a class="tab" href="{{ url_for('profile') }}" {% if ep in ('profile','change_password') %}aria-current="page"{% endif %}>My profile</a>
+{% endif %}
+</div></nav>
+{% endif %}
+<main class="wrap">
+  {% for cat, msg in get_flashed_messages(with_categories=true) %}<div class="flash {{ cat }}" role="status">{{ msg }}</div>{% endfor %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="foot"><div class="wrap"><span>{{ cfg.LAB }} · {{ cfg.INSTITUTE }}</span><span>{% if me and me.role == 'admin' %}Administrator view: all staff records are visible.{% elif me %}Your records are visible only to you and the Principal Investigator.{% endif %}</span></div></footer>
+</body>
+</html>

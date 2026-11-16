@@ -1,0 +1,80 @@
+{% macro mark() -%}
+<svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><path d="M2 9c3.5-3 7-3 10.5 0S19.5 12 24 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M2 15c3.5-3 7-3 10.5 0S19.5 18 24 15" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity=".75"/><path d="M2 21c3.5-3 7-3 10.5 0S19.5 24 24 21" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity=".5"/></svg>
+{%- endmacro %}
+
+{% macro avatar(user, size="") -%}
+{% if user and user.photo %}<img class="avatar {{ size }}" src="{{ url_for('photo', user_id=user.id) }}" alt="">{% else %}<span class="avatar {{ size }}" aria-hidden="true">{{ (user.name if user else '?')|initials }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro presets(endpoint, current, extra={}) -%}
+<div class="presets">{% for key, label in PRESETS %}<a class="btn sm" href="{{ url_for(endpoint, preset=key, **extra) }}" aria-current="{{ 'true' if current == key else 'false' }}">{{ label }}</a>{% endfor %}</div>
+{%- endmacro %}
+
+{% macro status_pill(s) -%}
+<span class="pill {{ {'Completed':'ok','In progress':'info','Pending':'warn','Blocked':'bad'}.get(s,'plain') }}">{{ s }}</span>
+{%- endmacro %}
+
+{% macro review_pill(e) -%}
+{% if e.review_status == 'reviewed' %}<span class="pill ok">Reviewed</span>{% elif e.review_status == 'revision' %}<span class="pill warn">Revision requested</span>{% else %}<span class="pill plain">Awaiting review</span>{% endif %}
+{%- endmacro %}
+
+{% macro cat_bars(rows) -%}
+{% set ns = namespace(top=0.0001) %}{% for k, v in rows %}{% if v > ns.top %}{% set ns.top = v %}{% endif %}{% endfor %}
+<div class="hbars">{% for k, v in rows %}<div class="hbar"><span class="k" title="{{ k }}">{{ k }}</span><span class="track"><span class="fill" style="width:{{ '%.1f'|format(v / ns.top * 100) }}%"></span></span><span class="n">{{ v|hrs }} h</span></div>{% else %}<p class="muted">No hours in this range.</p>{% endfor %}</div>
+{%- endmacro %}
+
+{% macro entry_card(e, mode, owner=None, show_owner=False, next_url='', open_review=None) -%}
+<article class="entry" id="entry-{{ e.id }}">
+  <div class="entry-top">
+    <div class="left">{% if show_owner and owner %}{{ avatar(owner) }}<div><div class="entry-title">{{ e.title }}</div><div class="muted small">{{ owner.name }}</div></div>{% else %}<div class="entry-title">{{ e.title }}</div>{% endif %}</div>
+    <div class="row">{{ status_pill(e.status) }}{{ review_pill(e) }}</div>
+  </div>
+  <div class="entry-meta"><span class="chip">{{ e.category }}</span><span>{{ e.location }}</span><span>·</span><span class="mono">{{ e.hours|hrs }} h</span>{% if is_late(e) %}<span>·</span><span class="pill warn">Logged late</span>{% endif %}<span>·</span><span>Logged {{ e.created_at|fstamp }}</span></div>
+  <dl>
+    <dt>Work done</dt><dd>{{ e.work }}</dd>
+    {% if e.outputs %}<dt>Outputs</dt><dd>{{ e.outputs }}</dd>{% endif %}
+    {% if e.next_plan %}<dt>Plan for next day</dt><dd>{{ e.next_plan }}</dd>{% endif %}
+    {% if e.issues %}<dt>Issues / support</dt><dd>{{ e.issues }}</dd>{% endif %}
+  </dl>
+  {% if e.review_status %}
+  <div class="review {{ 'ok' if e.review_status == 'reviewed' else 'warn' }}">
+    <div class="row"><strong>PI review</strong>{{ review_pill(e) }}<span class="muted small">{{ e.reviewed_at|fstamp }}</span>{% if e.review_status == 'revision' and e.updated_at > e.reviewed_at %}<span class="pill info">Edited after remark</span>{% endif %}</div>
+    {% if e.review_remark %}<div class="txt">{{ e.review_remark }}</div>{% endif %}
+  </div>
+  {% endif %}
+  {% if mode == 'admin' %}
+    {% if open_review == e.id %}
+    <form method="post" action="{{ url_for('admin_review', entry_id=e.id) }}" class="stack">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="next" value="{{ next_url }}#entry-{{ e.id }}">
+      <label for="remark-{{ e.id }}">Remark for {{ owner.name if owner else 'staff member' }}<textarea id="remark-{{ e.id }}" name="remark" rows="3" placeholder="Feedback, instructions or corrections" autofocus>{{ e.review_remark }}</textarea></label>
+      <div class="actions"><button class="btn primary sm" name="decision" value="reviewed">Mark reviewed</button><button class="btn sm" name="decision" value="revision">Request revision</button><a class="btn sm" href="{{ next_url }}#entry-{{ e.id }}">Cancel</a></div>
+    </form>
+    {% else %}
+    <div class="actions">
+      {% if e.review_status != 'reviewed' %}<form method="post" action="{{ url_for('admin_review', entry_id=e.id) }}" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="next" value="{{ next_url }}#entry-{{ e.id }}"><input type="hidden" name="remark" value="{{ e.review_remark }}"><button class="btn sm primary" name="decision" value="reviewed">Mark reviewed</button></form>{% endif %}
+      <a class="btn sm" href="{{ next_url }}{{ '&' if '?' in next_url else '?' }}review_open={{ e.id }}#entry-{{ e.id }}">{{ 'Edit remark' if e.review_remark else 'Add remark' }}</a>
+    </div>
+    {% endif %}
+  {% elif mode == 'staff' %}
+    {% if e.review_status == 'reviewed' %}<p class="muted small">Reviewed entries are locked.</p>
+    {% else %}
+    <div class="actions">
+      <a class="btn sm" href="{{ url_for('staff_edit', entry_id=e.id) }}">Edit</a>
+      {% if not e.review_status %}
+      <details class="confirm"><summary class="btn sm danger">Delete</summary>
+        <form method="post" action="{{ url_for('staff_delete', entry_id=e.id) }}" class="confirm-box"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">Delete this entry permanently?<button class="btn sm danger">Delete</button></form>
+      </details>
+      {% endif %}
+    </div>
+    {% endif %}
+  {% endif %}
+</article>
+{%- endmacro %}
+
+{% macro day_groups(groups, mode, by_id={}, show_owner=False, next_url='', open_review=None) -%}
+{% for d, items, h in groups %}
+<section class="daygroup"><div class="dayhead"><h3>{{ d|fday }}</h3><span class="muted small mono">{{ items|length }} {{ 'entry' if items|length == 1 else 'entries' }} · {{ h|hrs }} h</span></div>
+{% for e in items %}{{ entry_card(e, mode, by_id.get(e.user_id), show_owner, next_url, open_review) }}{% endfor %}
+</section>
+{% endfor %}
+{%- endmacro %}

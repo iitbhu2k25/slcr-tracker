@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_macros.html" import presets, day_groups, cat_bars with context %}
+{% block title %}Progress log{% endblock %}
+{% block content %}
+{% set extra = {'uid': f.uid, 'cat': f.cat, 'status': f.status, 'review': f.review} %}
+<section class="page-head"><div><p class="eyebrow">Progress log</p><h1>{{ by_id[f.uid].name if f.uid and f.uid in by_id else 'All staff' }}</h1></div>
+{% if f.uid and f.uid in by_id %}<a class="btn" href="{{ url_for('admin_reports', uid=f.uid, **{'from': f.frm.isoformat(), 'to': f.to.isoformat()}) }}">Build report for this period</a>{% endif %}</section>
+<section class="panel stack">
+  {{ presets('admin_log', f.preset, extra) }}
+  <form class="filters" method="get">
+    <label for="uid">Staff member<select id="uid" name="uid"><option value="0">All staff</option>{% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if f.uid == u.id }}>{{ u.name }}{{ ' (inactive)' if not u.active }}</option>{% endfor %}</select></label>
+    <label for="from">From<input type="date" id="from" name="from" value="{{ f.frm.isoformat() }}"></label>
+    <label for="to">To<input type="date" id="to" name="to" value="{{ f.to.isoformat() }}"></label>
+    <label for="cat">Work category<select id="cat" name="cat"><option value="all">All</option>{% for c in cfg.CATEGORIES %}<option {{ 'selected' if f.cat == c }}>{{ c }}</option>{% endfor %}</select></label>
+    <label for="status">Task status<select id="status" name="status"><option value="all">All</option>{% for s in cfg.STATUSES %}<option {{ 'selected' if f.status == s }}>{{ s }}</option>{% endfor %}</select></label>
+    <label for="review">Review<select id="review" name="review">{% for v, l in [('all','All'),('pending','Awaiting review'),('reviewed','Reviewed'),('revision','Revision requested')] %}<option value="{{ v }}" {{ 'selected' if f.review == v }}>{{ l }}</option>{% endfor %}</select></label>
+    <div class="actions"><button class="btn primary">Apply filters</button></div>
+  </form>
+</section>
+{% if rows %}
+<div class="split">
+  <section class="panel"><div class="panel-head"><h2>Hours per day</h2><span class="muted small mono">{{ hours|hrs }} h · {{ rows|length }} entries</span></div><div class="chart chart-scroll">{{ chart }}</div><p class="muted small">Lighter bars are non-working days.</p></section>
+  <section class="panel"><div class="panel-head"><h2>Hours by work category</h2></div>{{ cat_bars(by_cat) }}</section>
+</div>
+<div class="stack">{{ day_groups(groups, 'admin', by_id, not f.uid, next_url, open_review) }}</div>
+{% elif not staff %}
+<div class="empty"><h3>No staff accounts yet</h3><p>Entries appear here once staff start logging their daily progress.</p></div>
+{% else %}
+<div class="empty"><h3>No entries match these filters</h3><p>Widen the date range or set the filters back to All.</p></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import presets, day_groups, cat_bars, avatar with context %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<section class="page-head"><div><p class="eyebrow">Reports</p><h1>Progress report</h1></div><p class="muted small">Choose a staff member and period, then download a PDF to print or a CSV for spreadsheets.</p></section>
+{% if not staff %}
+<div class="empty"><h3>No staff to report on yet</h3><p>Reports become available once staff accounts exist and entries are logged.</p></div>
+{% else %}
+<section class="panel stack">
+  {{ presets('admin_reports', preset, {'uid': user.id if user else ''}) }}
+  <form class="filters" method="get">
+    <label for="uid">Staff member<select id="uid" name="uid">{% for u in staff %}<option value="{{ u.id }}" {{ 'selected' if user and user.id == u.id }}>{{ u.name }}{{ ' (inactive)' if not u.active }}</option>{% endfor %}</select></label>
+    <label for="from">From<input type="date" id="from" name="from" value="{{ frm.isoformat() }}"></label>
+    <label for="to">To<input type="date" id="to" name="to" value="{{ to.isoformat() }}"></label>
+    <div class="actions"><button class="btn primary">Build report</button></div>
+  </form>
+</section>
+{% if user %}
+{% set qs = {'from': frm.isoformat(), 'to': to.isoformat()} %}
+<section class="panel stack">
+  <div class="panel-head" style="margin:0">
+    <div class="row">{{ avatar(user, 'lg') }}<div><h2>{{ user.name }}</h2><p class="muted small">{{ user.designation }} · {{ frm|fdate }} – {{ to|fdate }}</p></div></div>
+    <div class="actions"><a class="btn primary" href="{{ url_for('report_pdf', user_id=user.id, **qs) }}">Download PDF</a><a class="btn" href="{{ url_for('report_print', user_id=user.id, **qs) }}" target="_blank" rel="noopener">Print view</a><a class="btn" href="{{ url_for('report_csv', user_id=user.id, **qs) }}">CSV</a></div>
+  </div>
+  <div class="split">
+    <table class="sumtable"><tbody>
+      <tr><td>Working days in period (up to today)</td><td>{{ sm.working_days }}</td></tr>
+      <tr><td>Days with a progress entry</td><td>{{ sm.days_reported }}</td></tr>
+      <tr><td>Days on leave</td><td>{{ sm.leave_days }}</td></tr>
+      <tr><td>Working days not reported</td><td>{{ sm.missing|length }}</td></tr>
+      <tr><td>Task entries</td><td>{{ sm.tasks }}</td></tr>
+      <tr><td>Total hours logged</td><td>{{ sm.hours|hrs }}</td></tr>
+      <tr><td>Average hours per reported working day</td><td>{{ sm.avg|hrs }}</td></tr>
+      <tr><td>Tasks completed</td><td>{{ sm.completed }}</td></tr>
+      <tr><td>Entries reviewed by PI</td><td>{{ sm.reviewed }} / {{ sm.tasks }}</td></tr>
+    </tbody></table>
+    <div class="stack"><h3>Hours by work category</h3>{{ cat_bars(sm.by_cat) }}
+    {% if sm.missing %}<h3>Working days not reported</h3><div class="missing">{% for d in sm.missing[:40] %}<span class="chip mono">{{ d|fdate }}</span>{% endfor %}{% if sm.missing|length > 40 %}<span class="muted small">and {{ sm.missing|length - 40 }} more</span>{% endif %}</div>{% endif %}</div>
+  </div>
+</section>
+<section class="stack"><h2>Entries in this report</h2>
+{% if groups %}{{ day_groups(groups, 'readonly') }}{% else %}<div class="empty"><h3>No entries in this period</h3></div>{% endif %}
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

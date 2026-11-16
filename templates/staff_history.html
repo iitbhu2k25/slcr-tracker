@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% from "_macros.html" import presets, day_groups with context %}
+{% block title %}My progress{% endblock %}
+{% block content %}
+{% set qs = {'from': frm.isoformat(), 'to': to.isoformat()} %}
+<section class="page-head"><div><p class="eyebrow">My progress</p><h1>Your entries and PI remarks</h1></div></section>
+<section class="panel stack">
+  {{ presets('staff_history', preset) }}
+  <form class="filters" method="get">
+    <label for="from">From<input type="date" id="from" name="from" value="{{ frm.isoformat() }}"></label>
+    <label for="to">To<input type="date" id="to" name="to" value="{{ to.isoformat() }}"></label>
+    <div class="actions"><button class="btn">Show</button></div>
+    <div class="actions"><a class="btn primary" href="{{ url_for('report_pdf', user_id=me.id, **qs) }}">Download PDF</a><a class="btn" href="{{ url_for('report_csv', user_id=me.id, **qs) }}">CSV</a><a class="btn" href="{{ url_for('report_print', user_id=me.id, **qs) }}" target="_blank" rel="noopener">Print view</a></div>
+  </form>
+</section>
+<div class="stats">
+  <div class="stat"><span class="v">{{ sm.days_reported }}<small> / {{ sm.working_days }}</small></span><span class="l">Days reported</span></div>
+  <div class="stat"><span class="v">{{ sm.hours|hrs }}</span><span class="l">Hours logged</span></div>
+  <div class="stat"><span class="v">{{ sm.completed }}</span><span class="l">Tasks completed</span></div>
+  <div class="stat"><span class="v">{{ sm.missing|length }}</span><span class="l">Working days not reported</span></div>
+  <div class="stat"><span class="v">{{ sm.reviewed }}<small> / {{ sm.tasks }}</small></span><span class="l">Reviewed by PI</span></div>
+</div>
+<div class="stack">
+{% if not has_any %}
+  <div class="empty"><h3>No entries yet</h3><p>Your daily entries and the PI's remarks will appear here.</p><a class="btn primary" href="{{ url_for('staff_entry') }}">Add today's entry</a></div>
+{% elif not sm.entries %}
+  <div class="empty"><h3>No entries in this period</h3><p>Choose a wider date range.</p></div>
+{% else %}
+  {{ day_groups(group_entries(sm.entries), 'staff') }}
+{% endif %}
+</div>
+{% endblock %}

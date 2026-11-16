@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_macros.html" import review_pill with context %}
+{% block title %}{{ 'Edit entry' if editing else 'Daily entry' }}{% endblock %}
+{% block content %}
+<section class="page-head"><div><p class="eyebrow">{{ 'Editing an entry' if editing else 'Daily entry' }}</p><h1>{{ 'Update your entry' if editing else 'What did you work on today?' }}</h1></div><p class="muted small">{{ today|flong }}</p></section>
+<div class="split">
+  <form class="panel stack" method="post" action="{{ url_for('staff_edit', entry_id=editing.id) if editing else url_for('staff_entry') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if editing and editing.review_status == 'revision' %}<div class="notice warn"><strong>The PI asked for a revision</strong><span>{{ editing.review_remark }}</span></div>{% endif %}
+    {% if errors %}<ul class="errors" role="alert">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+    <div class="grid3">
+      <label for="date">Date <span class="req">*</span><input type="date" id="date" name="date" value="{{ form.date }}" max="{{ today.isoformat() }}" required></label>
+      <label for="hours">Hours worked <span class="req">*</span><input type="number" id="hours" name="hours" min="0" max="24" step="0.5" value="{{ form.hours }}" required></label>
+      <label for="location">Work location<select id="location" name="location">{% for l in cfg.LOCATIONS %}<option {{ 'selected' if form.location == l }}>{{ l }}</option>{% endfor %}</select></label>
+    </div>
+    <div class="grid2">
+      <label for="category">Work category <span class="req">*</span><select id="category" name="category">{% for c in cfg.CATEGORIES %}<option {{ 'selected' if form.category == c }}>{{ c }}</option>{% endfor %}</select></label>
+      <label for="status">Task status<select id="status" name="status">{% for s in cfg.STATUSES %}<option {{ 'selected' if form.status == s }}>{{ s }}</option>{% endfor %}</select></label>
+    </div>
+    <label for="title">Task title <span class="req">*</span><input id="title" name="title" maxlength="140" value="{{ form.title or '' }}" placeholder="e.g. Rainfall–runoff calibration for the Varuna sub-basin" required></label>
+    <label for="work">Work carried out <span class="req">*</span><span class="hint">What you did, methods used and progress made</span><textarea id="work" name="work" rows="5" maxlength="4000">{{ form.work or '' }}</textarea></label>
+    <label for="outputs">Outputs / deliverables <span class="hint">Files, maps, datasets, code commits, drafts</span><textarea id="outputs" name="outputs" rows="2" maxlength="2000">{{ form.outputs or '' }}</textarea></label>
+    <div class="grid2">
+      <label for="next_plan">Plan for next working day<textarea id="next_plan" name="next_plan" rows="3" maxlength="2000">{{ form.next_plan or '' }}</textarea></label>
+      <label for="issues">Issues or support needed<textarea id="issues" name="issues" rows="3" maxlength="2000">{{ form.issues or '' }}</textarea></label>
+    </div>
+    <div class="actions"><button class="btn primary">{{ 'Save changes' if editing else 'Submit entry' }}</button>{% if editing %}<a class="btn" href="{{ url_for('staff_history') }}">Cancel</a>{% endif %}</div>
+    <p class="muted small">You can add more than one entry for the same day if you worked on separate tasks.</p>
+  </form>
+
+  <aside class="stack">
+    <div class="notice {{ '' if done_today else 'warn' }}"><strong>{{ "Today's progress is recorded" if done_today else 'No entry for today yet' }}</strong><span>{{ 'You can add another entry if you worked on more tasks.' if done_today else 'Submit today’s entry before you leave.' }}</span></div>
+    {% if revisions %}<div class="notice warn"><strong>{{ revisions|length }} {{ 'entry needs' if revisions|length == 1 else 'entries need' }} revision</strong><span>The PI has left remarks. Open the entry from My progress and update it.</span><span><a class="btn sm" href="{{ url_for('staff_history', preset='90') }}">Open My progress</a></span></div>{% endif %}
+    <div class="stats two">
+      <div class="stat"><span class="v">{{ month.days_reported }}<small> / {{ month.working_days }}</small></span><span class="l">Days reported this month</span></div>
+      <div class="stat"><span class="v">{{ month.hours|hrs }}</span><span class="l">Hours this month</span></div>
+      <div class="stat"><span class="v">{{ streak }}</span><span class="l">Working-day streak</span></div>
+      <div class="stat"><span class="v">{{ month.reviewed }}</span><span class="l">Reviewed by PI this month</span></div>
+    </div>
+    <section class="panel stack">
+      <div class="row" style="justify-content:space-between"><h3>Recent entries</h3><a class="btn sm" href="{{ url_for('staff_history') }}">View all</a></div>
+      {% for e in recent %}
+      <div class="stack" style="gap:4px;border-top:1px solid var(--line);padding-top:10px">
+        <div class="row" style="justify-content:space-between"><span class="mono small">{{ e.date|fdate }}</span>{{ review_pill(e) }}</div>
+        <span class="entry-title small">{{ e.title }}</span>
+        {% if e.review_remark %}<span class="muted small">PI: {{ e.review_remark|truncate(120) }}</span>{% endif %}
+      </div>
+      {% else %}<p class="muted small">Your submitted entries will appear here.</p>{% endfor %}
+    </section>
+  </aside>
+</div>
+{% endblock %}

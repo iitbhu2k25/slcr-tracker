@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "_macros.html" import avatar with context %}
+{% block title %}Team overview{% endblock %}
+{% block content %}
+<section class="page-head"><div><p class="eyebrow">Team overview</p><h1>{{ today|flong }}</h1></div></section>
+<div class="stats">
+  <div class="stat"><span class="v">{{ stats.staff }}</span><span class="l">Active staff</span></div>
+  <div class="stat"><span class="v">{{ stats.today }}<small> / {{ stats.staff }}</small></span><span class="l">Reported today</span></div>
+  <div class="stat"><span class="v">{{ stats.week }}</span><span class="l">Entries this week</span></div>
+  <div class="stat"><span class="v">{{ stats.hours|hrs }}</span><span class="l">Hours logged this month</span></div>
+  <a class="stat" href="{{ url_for('admin_log', preset='90', review='pending') }}" style="text-decoration:none;color:inherit"><span class="v">{{ stats.pending }}</span><span class="l">Entries awaiting your review</span></a>
+</div>
+<section class="stack">
+  <div class="panel-head" style="margin:0"><h2>Project staff</h2><span class="muted small">Select a person to open their progress log.</span></div>
+  {% if cards %}
+  <div class="cards">
+  {% for c in cards %}
+    <a class="scard" href="{{ url_for('admin_log', uid=c.u.id, preset='month') }}">
+      <div class="scard-top">{{ avatar(c.u, 'lg') }}<div><div class="nm">{{ c.u.name }}</div><div class="muted small">{{ c.u.designation }}{% if c.u.emp_code %} · {{ c.u.emp_code }}{% endif %}</div></div></div>
+      <div>{% if c.done %}<span class="pill ok">Reported today</span>{% elif today.weekday() in cfg.WORKING_WEEKDAYS %}<span class="pill warn">Not reported today</span>{% else %}<span class="pill plain">Non-working day</span>{% endif %}</div>
+      <div class="kv">
+        <span>Last entry</span><span>{{ c.last.date|fdate if c.last else '—' }}</span>
+        <span>Hours this month</span><span>{{ c.sm.hours|hrs }}</span>
+        <span>Days reported this month</span><span>{{ c.sm.days_reported }} / {{ c.sm.working_days }}</span>
+        <span>Current streak</span><span>{{ c.streak }} {{ 'day' if c.streak == 1 else 'days' }}</span>
+      </div>
+      <div class="stack" style="gap:4px"><span class="muted small">Last 14 days</span><div class="strip">{% for d, on in c.strip %}<i class="{{ 'on' if on else ('' if d.weekday() in cfg.WORKING_WEEKDAYS else 'off') }}" title="{{ d|fday }}{{ ' · reported' if on }}"></i>{% endfor %}</div></div>
+    </a>
+  {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty"><h3>No staff accounts yet</h3><p>Create an account for each staff member under Staff accounts, then give them their username and temporary password.</p><a class="btn primary" href="{{ url_for('admin_staff') }}">Add staff accounts</a></div>
+  {% endif %}
+</section>
+{% if waiting %}
+<section class="panel"><div class="panel-head"><h2>Roster members without an account</h2><a class="btn sm" href="{{ url_for('admin_staff') }}">Add accounts</a></div>
+<ul class="roster">{% for r in waiting %}<li><span>{{ r.name }}<br><span class="muted small">{{ r.designation }}</span></span><span class="pill plain">No account</span></li>{% endfor %}</ul></section>
+{% endif %}
+{% endblock %}
