@@ -54,32 +54,22 @@ interface DbState {
 
 const EMPTY_DB: DbState = { users: [], entries: [], login_failures: [], audit_log: [], seq: { users: 0, entries: 0, audit: 0 } };
 
-/* ------------------------------------------------------------------ storage backend */
+/* ------------------------------------------------------------------ file storage */
 
-const USE_KV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
-const KV_KEY = "slcr:db";
-
-async function readFromStorage(): Promise<DbState> {
-  if (USE_KV) {
-    const { kv } = await import("@vercel/kv");
-    const data = await kv.get<DbState>(KV_KEY);
-    return data ?? EMPTY_DB;
-  }
-  // File fallback for local dev
-  const { readFileSync, existsSync } = await import("fs");
+async function dbPath(): Promise<string> {
   const { join } = await import("path");
-  const path = join(process.cwd(), "data", "db.json");
-  if (!existsSync(path)) return EMPTY_DB;
-  return JSON.parse(readFileSync(path, "utf-8")) as DbState;
+  return join(process.cwd(), "data", "db.json");
 }
 
-async function writeToStorage(db: DbState): Promise<void> {
-  if (USE_KV) {
-    const { kv } = await import("@vercel/kv");
-    await kv.set(KV_KEY, db);
-    return;
-  }
-  const { writeFileSync, existsSync, mkdirSync } = await import("fs");
+async function readFromFile(): Promise<DbState> {
+  const { /*turbopackIgnore: true*/ readFileSync, existsSync } = await import("fs");
+  const p = await dbPath();
+  if (!existsSync(p)) return EMPTY_DB;
+  return JSON.parse(readFileSync(p, "utf-8")) as DbState;
+}
+
+async function writeToFile(db: DbState): Promise<void> {
+  const { /*turbopackIgnore: true*/ writeFileSync, existsSync, mkdirSync } = await import("fs");
   const { join } = await import("path");
   const dir = join(process.cwd(), "data");
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
@@ -92,16 +82,15 @@ const G = globalThis as unknown as { _slcrDb?: DbState; _slcrLock: Promise<void>
 if (!G._slcrLock) G._slcrLock = Promise.resolve();
 
 async function ensureDb(): Promise<DbState> {
-  if (!G._slcrDb) G._slcrDb = await readFromStorage();
+  if (!G._slcrDb) G._slcrDb = await readFromFile();
   return G._slcrDb;
 }
 
 async function write(fn: (db: DbState) => void): Promise<void> {
   const chain = G._slcrLock.then(async () => {
-    // Always reload from storage before writing to avoid overwriting concurrent changes
-    G._slcrDb = await readFromStorage();
+    G._slcrDb = await readFromFile();
     fn(G._slcrDb);
-    await writeToStorage(G._slcrDb);
+    await writeToFile(G._slcrDb);
   });
   G._slcrLock = chain.catch(() => {});
   await chain;
