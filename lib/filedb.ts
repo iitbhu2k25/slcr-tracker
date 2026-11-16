@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import type { Entry, User } from "./types";
 
-const DATA_DIR = join(process.cwd(), "data");
+const DATA_DIR = process.env.DATA_DIR ?? join(process.cwd(), "data");
 const DB_PATH = join(DATA_DIR, "db.json");
 
 interface StoredUser {
