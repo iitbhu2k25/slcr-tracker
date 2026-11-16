@@ -14,7 +14,7 @@ export async function GET() {
     {
       exported_at: new Date().toISOString(),
       note: "SLCR Progress Tracker backup. Keep private: contains all staff records. Passwords are not included.",
-      ...getBackupData(),
+      ...(await getBackupData()),
     },
     null,
     1,

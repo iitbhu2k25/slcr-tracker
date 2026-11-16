@@ -1,11 +1,7 @@
 import "server-only";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
 import type { Entry, User } from "./types";
 
-const DATA_DIR = process.env.DATA_DIR ?? join(process.cwd(), "data");
-const DB_PATH = join(DATA_DIR, "db.json");
-const BASELINE_PATH = join(process.cwd(), "data", "db.json");
+/* ------------------------------------------------------------------ types */
 
 interface StoredUser {
   id: number;
@@ -56,144 +52,148 @@ interface DbState {
   seq: { users: number; entries: number; audit: number };
 }
 
+const EMPTY_DB: DbState = { users: [], entries: [], login_failures: [], audit_log: [], seq: { users: 0, entries: 0, audit: 0 } };
+
+/* ------------------------------------------------------------------ storage backend */
+
+const USE_KV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const KV_KEY = "slcr:db";
+
+async function readFromStorage(): Promise<DbState> {
+  if (USE_KV) {
+    const { kv } = await import("@vercel/kv");
+    const data = await kv.get<DbState>(KV_KEY);
+    return data ?? EMPTY_DB;
+  }
+  // File fallback for local dev
+  const { readFileSync, existsSync } = await import("fs");
+  const { join } = await import("path");
+  const path = join(process.cwd(), "data", "db.json");
+  if (!existsSync(path)) return EMPTY_DB;
+  return JSON.parse(readFileSync(path, "utf-8")) as DbState;
+}
+
+async function writeToStorage(db: DbState): Promise<void> {
+  if (USE_KV) {
+    const { kv } = await import("@vercel/kv");
+    await kv.set(KV_KEY, db);
+    return;
+  }
+  const { writeFileSync, existsSync, mkdirSync } = await import("fs");
+  const { join } = await import("path");
+  const dir = join(process.cwd(), "data");
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "db.json"), JSON.stringify(db, null, 2), "utf-8");
+}
+
+/* ------------------------------------------------------------------ in-memory cache + write lock */
+
 const G = globalThis as unknown as { _slcrDb?: DbState; _slcrLock: Promise<void> };
 if (!G._slcrLock) G._slcrLock = Promise.resolve();
 
-function loadDb(): DbState {
-  // Runtime path (/tmp on Vercel) takes priority
-  if (existsSync(/*turbopackIgnore: true*/ DB_PATH)) {
-    return JSON.parse(readFileSync(/*turbopackIgnore: true*/ DB_PATH, "utf-8")) as DbState;
-  }
-  // Fall back to the committed baseline (accounts seeded at build time)
-  if (DB_PATH !== BASELINE_PATH && existsSync(/*turbopackIgnore: true*/ BASELINE_PATH)) {
-    return JSON.parse(readFileSync(/*turbopackIgnore: true*/ BASELINE_PATH, "utf-8")) as DbState;
-  }
-  return { users: [], entries: [], login_failures: [], audit_log: [], seq: { users: 0, entries: 0, audit: 0 } };
-}
-
-function getDb(): DbState {
-  if (!G._slcrDb) G._slcrDb = loadDb();
+async function ensureDb(): Promise<DbState> {
+  if (!G._slcrDb) G._slcrDb = await readFromStorage();
   return G._slcrDb;
 }
 
-function saveDb(): void {
-  if (!existsSync(/*turbopackIgnore: true*/ DATA_DIR)) mkdirSync(/*turbopackIgnore: true*/ DATA_DIR, { recursive: true });
-  writeFileSync(/*turbopackIgnore: true*/ DB_PATH, JSON.stringify(G._slcrDb!, null, 2), "utf-8");
-}
-
-async function write(fn: () => void): Promise<void> {
-  const chain = G._slcrLock.then(() => { fn(); saveDb(); });
+async function write(fn: (db: DbState) => void): Promise<void> {
+  const chain = G._slcrLock.then(async () => {
+    // Always reload from storage before writing to avoid overwriting concurrent changes
+    G._slcrDb = await readFromStorage();
+    fn(G._slcrDb);
+    await writeToStorage(G._slcrDb);
+  });
   G._slcrLock = chain.catch(() => {});
   await chain;
 }
 
-function nextId(seq: keyof DbState["seq"]): number {
-  const db = getDb();
+function nextId(db: DbState, seq: keyof DbState["seq"]): number {
   db.seq[seq] += 1;
   return db.seq[seq];
 }
 
+/* ------------------------------------------------------------------ converters */
+
 function toUser(u: StoredUser): User {
-  return {
-    ...u,
-    has_photo: u.photo_b64 !== null,
-    created_at: new Date(u.created_at),
-    last_login: u.last_login ? new Date(u.last_login) : null,
-  };
+  return { ...u, has_photo: u.photo_b64 !== null, created_at: new Date(u.created_at), last_login: u.last_login ? new Date(u.last_login) : null };
 }
 
 function toEntry(e: StoredEntry): Entry {
-  return {
-    ...e,
-    created_at: new Date(e.created_at),
-    updated_at: new Date(e.updated_at),
-    reviewed_at: e.reviewed_at ? new Date(e.reviewed_at) : null,
-  };
+  return { ...e, created_at: new Date(e.created_at), updated_at: new Date(e.updated_at), reviewed_at: e.reviewed_at ? new Date(e.reviewed_at) : null };
 }
 
-// --- Users ---
+/* ------------------------------------------------------------------ users */
 
 export async function findUserById(id: number): Promise<User | null> {
-  const u = getDb().users.find(u => u.id === id);
+  const db = await ensureDb();
+  const u = db.users.find(u => u.id === id);
   return u ? toUser(u) : null;
 }
 
-export async function findUserByUsername(
-  username: string,
-): Promise<{ id: number; password_hash: string; active: boolean } | null> {
-  const u = getDb().users.find(u => u.username === username);
+export async function findUserByUsername(username: string): Promise<{ id: number; password_hash: string; active: boolean } | null> {
+  const db = await ensureDb();
+  const u = db.users.find(u => u.username === username);
   return u ? { id: u.id, password_hash: u.password_hash, active: u.active } : null;
 }
 
-export async function insertUser(data: {
-  username: string;
-  password_hash: string;
-  role: "admin" | "staff";
-  name: string;
-  designation: string;
-  must_change_pw: boolean;
-}): Promise<number> {
+export async function insertUser(data: { username: string; password_hash: string; role: "admin" | "staff"; name: string; designation: string; must_change_pw: boolean }): Promise<number> {
   let id = 0;
-  await write(() => {
-    id = nextId("users");
-    getDb().users.push({
-      id, ...data,
-      pw_version: 1, emp_code: "", joined_on: "", email: "", phone: "",
-      photo_b64: null, photo_version: 0, active: true,
-      created_at: new Date().toISOString(), last_login: null,
-    });
+  await write(db => {
+    id = nextId(db, "users");
+    db.users.push({ id, ...data, pw_version: 1, emp_code: "", joined_on: "", email: "", phone: "", photo_b64: null, photo_version: 0, active: true, created_at: new Date().toISOString(), last_login: null });
   });
   return id;
 }
 
 export async function usernameExists(username: string): Promise<boolean> {
-  return getDb().users.some(u => u.username === username);
+  const db = await ensureDb();
+  return db.users.some(u => u.username === username);
 }
 
 export async function updateUserLogin(id: number): Promise<void> {
-  await write(() => {
-    const u = getDb().users.find(u => u.id === id);
+  await write(db => {
+    const u = db.users.find(u => u.id === id);
     if (u) u.last_login = new Date().toISOString();
   });
 }
 
 export async function updatePassword(id: number, hash: string, mustChange = false): Promise<void> {
-  await write(() => {
-    const u = getDb().users.find(u => u.id === id);
+  await write(db => {
+    const u = db.users.find(u => u.id === id);
     if (u) { u.password_hash = hash; u.must_change_pw = mustChange; u.pw_version += 1; }
   });
 }
 
-export async function updateProfile(id: number, data: {
-  name: string; designation: string; emp_code: string; joined_on: string; email: string; phone: string;
-}): Promise<void> {
-  await write(() => {
-    const u = getDb().users.find(u => u.id === id);
+export async function updateProfile(id: number, data: { name: string; designation: string; emp_code: string; joined_on: string; email: string; phone: string }): Promise<void> {
+  await write(db => {
+    const u = db.users.find(u => u.id === id);
     if (u) Object.assign(u, data);
   });
 }
 
 export async function setPhoto(id: number, photo: Buffer | null): Promise<void> {
-  await write(() => {
-    const u = getDb().users.find(u => u.id === id);
+  await write(db => {
+    const u = db.users.find(u => u.id === id);
     if (u) { u.photo_b64 = photo ? photo.toString("base64") : null; u.photo_version += 1; }
   });
 }
 
 export async function getPhoto(id: number): Promise<Buffer | null> {
-  const u = getDb().users.find(u => u.id === id);
+  const db = await ensureDb();
+  const u = db.users.find(u => u.id === id);
   return u?.photo_b64 ? Buffer.from(u.photo_b64, "base64") : null;
 }
 
 export async function toggleUserActive(id: number): Promise<void> {
-  await write(() => {
-    const u = getDb().users.find(u => u.id === id);
+  await write(db => {
+    const u = db.users.find(u => u.id === id);
     if (u) u.active = !u.active;
   });
 }
 
 export async function allUsers(): Promise<User[]> {
-  return getDb().users.map(toUser).sort((a, b) => {
+  const db = await ensureDb();
+  return db.users.map(toUser).sort((a, b) => {
     if (a.role !== b.role) return a.role < b.role ? -1 : 1;
     if (a.active !== b.active) return b.active ? 1 : -1;
     return a.name.localeCompare(b.name);
@@ -201,141 +201,113 @@ export async function allUsers(): Promise<User[]> {
 }
 
 export async function staffUsers(includeInactive = false): Promise<User[]> {
-  return getDb().users
-    .filter(u => u.role === "staff" && (includeInactive || u.active))
-    .map(toUser);
+  const db = await ensureDb();
+  return db.users.filter(u => u.role === "staff" && (includeInactive || u.active)).map(toUser);
 }
 
 export async function adminExists(): Promise<boolean> {
-  return getDb().users.some(u => u.role === "admin");
+  const db = await ensureDb();
+  return db.users.some(u => u.role === "admin");
 }
 
 export async function getAllUserNames(): Promise<string[]> {
-  return getDb().users.map(u => u.name);
+  const db = await ensureDb();
+  return db.users.map(u => u.name);
 }
 
-// --- Entries ---
+/* ------------------------------------------------------------------ entries */
 
 export async function findEntryById(id: number): Promise<Entry | null> {
-  const e = getDb().entries.find(e => e.id === id);
+  const db = await ensureDb();
+  const e = db.entries.find(e => e.id === id);
   return e ? toEntry(e) : null;
 }
 
-export async function insertEntry(data: {
-  user_id: number; date: string; hours: number; location: string; category: string;
-  status: string; title: string; work: string; outputs: string; next_plan: string; issues: string;
-}): Promise<void> {
-  await write(() => {
-    const id = nextId("entries");
+export async function insertEntry(data: { user_id: number; date: string; hours: number; location: string; category: string; status: string; title: string; work: string; outputs: string; next_plan: string; issues: string }): Promise<void> {
+  await write(db => {
+    const id = nextId(db, "entries");
     const now = new Date().toISOString();
-    getDb().entries.push({
-      id, ...data, created_at: now, updated_at: now,
-      review_status: "", review_remark: "", reviewed_at: null, reviewed_by: null,
-    });
+    db.entries.push({ id, ...data, created_at: now, updated_at: now, review_status: "", review_remark: "", reviewed_at: null, reviewed_by: null });
   });
 }
 
-export async function updateEntry(
-  id: number, userId: number,
-  data: {
-    date: string; hours: number; location: string; category: string; status: string;
-    title: string; work: string; outputs: string; next_plan: string; issues: string;
-  },
-): Promise<void> {
-  await write(() => {
-    const e = getDb().entries.find(e => e.id === id && e.user_id === userId);
+export async function updateEntry(id: number, userId: number, data: { date: string; hours: number; location: string; category: string; status: string; title: string; work: string; outputs: string; next_plan: string; issues: string }): Promise<void> {
+  await write(db => {
+    const e = db.entries.find(e => e.id === id && e.user_id === userId);
     if (e) Object.assign(e, { ...data, updated_at: new Date().toISOString() });
   });
 }
 
 export async function deleteEntry(id: number, userId: number): Promise<void> {
-  await write(() => {
-    const db = getDb();
-    db.entries = db.entries.filter(e => !(e.id === id && e.user_id === userId));
-  });
+  await write(db => { db.entries = db.entries.filter(e => !(e.id === id && e.user_id === userId)); });
 }
 
 export async function entriesFor(userId: number, from?: string, to?: string): Promise<Entry[]> {
-  return getDb().entries
+  const db = await ensureDb();
+  return db.entries
     .filter(e => e.user_id === userId && (!from || e.date >= from) && (!to || e.date <= to))
     .sort((a, b) => a.date !== b.date ? (a.date < b.date ? 1 : -1) : (a.created_at < b.created_at ? 1 : -1))
     .map(toEntry);
 }
 
-export async function reviewEntry(
-  id: number, decision: "reviewed" | "revision", remark: string, reviewedBy: number,
-): Promise<void> {
-  await write(() => {
-    const e = getDb().entries.find(e => e.id === id);
-    if (e) {
-      e.review_status = decision;
-      e.review_remark = remark;
-      e.reviewed_at = new Date().toISOString();
-      e.reviewed_by = reviewedBy;
-    }
+export async function reviewEntry(id: number, decision: "reviewed" | "revision", remark: string, reviewedBy: number): Promise<void> {
+  await write(db => {
+    const e = db.entries.find(e => e.id === id);
+    if (e) { e.review_status = decision; e.review_remark = remark; e.reviewed_at = new Date().toISOString(); e.reviewed_by = reviewedBy; }
   });
 }
 
-export async function allEntries(): Promise<StoredEntry[]> {
-  return [...getDb().entries].sort((a, b) =>
-    a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id,
-  );
-}
-
 export async function getEntriesInRange(from: string, to: string): Promise<Entry[]> {
-  return getDb().entries
-    .filter(e => e.date >= from && e.date <= to)
-    .map(toEntry);
+  const db = await ensureDb();
+  return db.entries.filter(e => e.date >= from && e.date <= to).map(toEntry);
 }
 
-// --- Login failures ---
+export async function allEntries(): Promise<StoredEntry[]> {
+  const db = await ensureDb();
+  return [...db.entries].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id);
+}
+
+/* ------------------------------------------------------------------ login failures */
 
 export async function recordLoginFailure(key: string): Promise<void> {
-  await write(() => { getDb().login_failures.push({ key, at: new Date().toISOString() }); });
+  await write(db => { db.login_failures.push({ key, at: new Date().toISOString() }); });
 }
 
 export async function countLoginFailures(key: string, lockoutMinutes: number): Promise<number> {
+  const db = await ensureDb();
   const cutoff = new Date(Date.now() - lockoutMinutes * 60000).toISOString();
-  return getDb().login_failures.filter(f => f.key === key && f.at >= cutoff).length;
+  return db.login_failures.filter(f => f.key === key && f.at >= cutoff).length;
 }
 
 export async function cleanExpiredFailures(lockoutMinutes: number): Promise<void> {
   const cutoff = new Date(Date.now() - lockoutMinutes * 60000).toISOString();
-  if (getDb().login_failures.some(f => f.at < cutoff)) {
-    await write(() => {
-      const db = getDb();
-      db.login_failures = db.login_failures.filter(f => f.at >= cutoff);
-    });
+  const db = await ensureDb();
+  if (db.login_failures.some(f => f.at < cutoff)) {
+    await write(db => { db.login_failures = db.login_failures.filter(f => f.at >= cutoff); });
   }
 }
 
 export async function clearLoginFailures(key: string): Promise<void> {
-  await write(() => {
-    const db = getDb();
-    db.login_failures = db.login_failures.filter(f => f.key !== key);
-  });
+  await write(db => { db.login_failures = db.login_failures.filter(f => f.key !== key); });
 }
 
 export async function clearLoginFailuresByPrefix(prefix: string): Promise<void> {
-  await write(() => {
-    const db = getDb();
-    db.login_failures = db.login_failures.filter(f => !f.key.startsWith(prefix));
-  });
+  await write(db => { db.login_failures = db.login_failures.filter(f => !f.key.startsWith(prefix)); });
 }
 
-// --- Audit log ---
+/* ------------------------------------------------------------------ audit */
 
 export async function insertAudit(userId: number | null, action: string, detail = ""): Promise<void> {
-  await write(() => {
-    const id = nextId("audit");
-    getDb().audit_log.push({ id, at: new Date().toISOString(), user_id: userId, action, detail: detail.slice(0, 500) });
+  await write(db => {
+    const id = nextId(db, "audit");
+    db.audit_log.push({ id, at: new Date().toISOString(), user_id: userId, action, detail: detail.slice(0, 500) });
   });
 }
 
-// --- Backup ---
+/* ------------------------------------------------------------------ backup */
 
-export function getBackupData() {
-  const db = getDb();
+export async function getBackupData() {
+  const db = await ensureDb();
   return {
     users: db.users.map(({ photo_b64, ...u }) => ({ ...u, photo_jpeg_base64: photo_b64 })),
     entries: db.entries,
