@@ -13,19 +13,21 @@ export const TIMEZONE = "Asia/Kolkata";
 
 /** Accounts offered by "Create roster accounts" on the Staff accounts page. */
 export const ROSTER = [
-  { username: "rajat", name: "Mr. Rajat Saxena", designation: "Young Professional" },
-  { username: "rajk", name: "Mr. Raj Kumar", designation: "Junior Research Fellow (JRF)" },
-  { username: "gaurav", name: "Mr. Gaurav Kumar", designation: "Project Assistant" },
-  { username: "anas", name: "Mr. Anas", designation: "Project Assistant" },
-  { username: "akash", name: "Dr. Akash Tiwar", designation: "Research Associate" },
+  { username: "rajat",  name: "Mr. Rajat Saxena",           designation: "Young Professional" },
+  { username: "rajkc",  name: "Mr. Raj Kumar Choudhary",    designation: "Junior Research Fellow (JRF)" },
+  { username: "gaurav", name: "Mr. Gaurav Kumar",            designation: "Scientific Assistant" },
+  { username: "anas",   name: "Mr. Mohd Anas Khan",          designation: "Project Associate 2" },
+  { username: "akash",  name: "Dr. Akash Tiwari",            designation: "Research Associate" },
 ];
 
 export const DESIGNATIONS = [
   "Young Professional",
   "Junior Research Fellow (JRF)",
   "Senior Research Fellow (SRF)",
+  "Scientific Assistant",
   "Project Assistant",
   "Project Associate",
+  "Project Associate 2",
   "Research Associate",
   "Other",
 ];

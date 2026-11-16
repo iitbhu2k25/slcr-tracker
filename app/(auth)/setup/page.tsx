@@ -5,6 +5,6 @@ import { adminExists } from "@/lib/data";
 export const metadata = { title: "First-time setup" };
 
 export default async function SetupPage() {
-  if (await adminExists()) redirect("/login");
+  if (process.env.SETUP_DONE === "1" || await adminExists()) redirect("/login");
   return <SetupForm />;
 }
