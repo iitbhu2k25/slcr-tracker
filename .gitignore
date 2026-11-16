@@ -7,3 +7,6 @@ out/
 next-env.d.ts
 .vercel
 tests/output/
+
+# Old file-based storage (replaced by Supabase)
+data/

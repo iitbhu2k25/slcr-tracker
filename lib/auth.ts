@@ -10,7 +10,7 @@ import {
   findUserById as _findUserById,
   recordLoginFailure, countLoginFailures, cleanExpiredFailures,
   clearLoginFailures as _clearLoginFailures, insertAudit,
-} from "./filedb";
+} from "./store";
 import type { User } from "./types";
 
 const COOKIE = "slcr_session";

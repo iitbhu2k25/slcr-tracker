@@ -25,7 +25,7 @@ import {
   updateProfile,
   updateUserLogin,
   usernameExists,
-} from "@/lib/filedb";
+} from "@/lib/store";
 import { isISODate, todayISO } from "@/lib/dates";
 import { safeNext, withMsg } from "@/lib/messages";
 import type { Entry } from "@/lib/types";

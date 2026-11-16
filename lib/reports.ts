@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 import { autoTable } from "jspdf-autotable";
 import { apiUser, audit, findUserById } from "./auth";
 import { INSTITUTE, LAB, PROJECT } from "./config";
-import { getPhoto } from "./filedb";
+import { getPhoto } from "./store";
 import { entriesFor } from "./data";
 import { dow, fmtDate, fmtStamp, hrs, rangeFromParams, summarize, type SearchParams, type Summary } from "./dates";
 import type { User } from "./types";

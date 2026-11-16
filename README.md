@@ -30,7 +30,7 @@ Smart Laboratory on Clean Rivers (SLCR), IIT (BHU) Varanasi.
 | Part | Technology |
 |---|---|
 | Framework | Next.js 16 (App Router, React Server Components, Server Actions), TypeScript |
-| Database | PostgreSQL (Neon on Vercel) via `postgres` |
+| Database | Supabase (Postgres) via `@supabase/supabase-js`, server-side only |
 | Sign-in | `bcryptjs` password hashing, `jose` signed session cookies |
 | PDF reports | `jspdf` + `jspdf-autotable` |
 | Hosting | Vercel (functions run in the Singapore region, set in `vercel.json`) |
@@ -55,13 +55,22 @@ tests/e2e.cjs      browser tests of the whole app
 
 ## Running on your own computer (optional, for developers)
 
-Needs Node.js 20+ and a Postgres database (a free Neon database works).
+Needs Node.js 20+ and a Supabase project (the free tier works).
+
+1. In Supabase, open **SQL Editor → New query**, paste `supabase/schema.sql` and run it.
+2. Set up and seed:
 
 ```bash
 npm install
-cp .env.example .env.local      # fill in DATABASE_URL, SESSION_SECRET, SETUP_KEY
-npm run dev                     # http://localhost:3000  → /setup on first run
+cp .env.example .env.local      # fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SESSION_SECRET, SETUP_KEY
+npm run seed                    # creates admin + roster, prints one-time passwords
+npm run dev                     # http://localhost:3000
 ```
+
+Each seeded account gets a one-time temporary password. At first sign-in the person is sent to
+**Set a new password** and cannot use the app until they choose their own. If someone loses theirs,
+the administrator uses **Reset password**, which issues a new one-time password the same way.
+(Skip `npm run seed` if you would rather create the first admin yourself on `/setup`.)
 
 For local testing over plain http with `npm run build && npm start`, also set `INSECURE_COOKIES=1`.
 
@@ -71,7 +80,7 @@ With the app running against an **empty** database:
 
 ```bash
 npm i -D playwright && npx playwright install chromium
-BASE_URL=http://127.0.0.1:3000 SETUP_KEY=... DATABASE_URL=... node tests/e2e.cjs
+BASE_URL=http://127.0.0.1:3000 SETUP_KEY=... node tests/e2e.cjs
 ```
 
 37 checks cover setup, sign-in, forced password change, entries, photos, staff-to-staff privacy

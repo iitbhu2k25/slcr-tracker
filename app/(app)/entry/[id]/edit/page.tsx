@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { EntryForm } from "@/components/forms";
 import { StaffSidebar } from "@/components/staff-sidebar";
 import { requireStaff } from "@/lib/auth";
-import { findEntryById } from "@/lib/filedb";
+import { findEntryById } from "@/lib/store";
 import { fmtLong, todayISO } from "@/lib/dates";
 import { withMsg } from "@/lib/messages";
 import type { Entry } from "@/lib/types";

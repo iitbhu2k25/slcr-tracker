@@ -5,7 +5,7 @@ import { CatBars, Empty, Flash, Presets } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { CATEGORIES, STATUSES } from "@/lib/config";
 import { publicUser, staffUsers } from "@/lib/data";
-import { getEntriesInRange } from "@/lib/filedb";
+import { getEntriesInRange } from "@/lib/store";
 import { hrs, needsReview, param, rangeFromParams, sortEntriesDesc, type SearchParams } from "@/lib/dates";
 import type { Entry } from "@/lib/types";
 

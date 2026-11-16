@@ -5,7 +5,7 @@ import {
   allUsers as _allUsers,
   entriesFor as _entriesFor,
   staffUsers as _staffUsers,
-} from "./filedb";
+} from "./store";
 import type { Entry, PublicUser, User } from "./types";
 
 export async function entriesFor(userId: number, from?: string, to?: string): Promise<Entry[]> {
