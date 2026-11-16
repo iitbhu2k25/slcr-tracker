@@ -5,6 +5,7 @@ import type { Entry, User } from "./types";
 
 const DATA_DIR = process.env.DATA_DIR ?? join(process.cwd(), "data");
 const DB_PATH = join(DATA_DIR, "db.json");
+const BASELINE_PATH = join(process.cwd(), "data", "db.json");
 
 interface StoredUser {
   id: number;
@@ -59,10 +60,15 @@ const G = globalThis as unknown as { _slcrDb?: DbState; _slcrLock: Promise<void>
 if (!G._slcrLock) G._slcrLock = Promise.resolve();
 
 function loadDb(): DbState {
-  if (!existsSync(/*turbopackIgnore: true*/ DB_PATH)) {
-    return { users: [], entries: [], login_failures: [], audit_log: [], seq: { users: 0, entries: 0, audit: 0 } };
+  // Runtime path (/tmp on Vercel) takes priority
+  if (existsSync(/*turbopackIgnore: true*/ DB_PATH)) {
+    return JSON.parse(readFileSync(/*turbopackIgnore: true*/ DB_PATH, "utf-8")) as DbState;
   }
-  return JSON.parse(readFileSync(/*turbopackIgnore: true*/ DB_PATH, "utf-8")) as DbState;
+  // Fall back to the committed baseline (accounts seeded at build time)
+  if (DB_PATH !== BASELINE_PATH && existsSync(/*turbopackIgnore: true*/ BASELINE_PATH)) {
+    return JSON.parse(readFileSync(/*turbopackIgnore: true*/ BASELINE_PATH, "utf-8")) as DbState;
+  }
+  return { users: [], entries: [], login_failures: [], audit_log: [], seq: { users: 0, entries: 0, audit: 0 } };
 }
 
 function getDb(): DbState {

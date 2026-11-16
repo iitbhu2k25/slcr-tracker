@@ -3,8 +3,8 @@
     {
       "id": 1,
       "username": "admin",
-      "password_hash": "$2b$11$1Mv/4R2W7Q7PdJRDWcp8..Bp3w.4hnQxu96.5TBFMaOiDtL74hAra",
-      "pw_version": 2,
+      "password_hash": "$2b$11$gJUmsszfGT5HQSqWWqrrHekpUBugpPiL8y1UMdMdMYrPW65ebcjAS",
+      "pw_version": 1,
       "role": "admin",
       "name": "Principal Investigator",
       "designation": "Principal Investigator",
@@ -15,16 +15,16 @@
       "photo_b64": null,
       "photo_version": 0,
       "active": true,
-      "must_change_pw": false,
-      "created_at": "2026-11-16T06:36:13.378Z",
-      "last_login": "2026-11-16T06:41:58.241Z"
+      "must_change_pw": true,
+      "created_at": "2026-11-16T06:51:29.179Z",
+      "last_login": null
     },
     {
       "id": 2,
       "username": "rajat",
       "name": "Mr. Rajat Saxena",
       "designation": "Young Professional",
-      "password_hash": "$2b$11$elBFIqE9swmHj2YKNKAuFOT0aRFxTK/awM/.odGgUFEZIQ1XZh0D6",
+      "password_hash": "$2b$11$ihmbTDudcBKzQgoybEhVoO9MfIYddAVXWPD2sZbazG0gwgz.egmMS",
       "pw_version": 1,
       "role": "staff",
       "emp_code": "",
@@ -35,7 +35,7 @@
       "photo_version": 0,
       "active": true,
       "must_change_pw": true,
-      "created_at": "2026-11-16T06:36:13.378Z",
+      "created_at": "2026-11-16T06:51:29.179Z",
       "last_login": null
     },
     {
@@ -43,7 +43,7 @@
       "username": "rajkc",
       "name": "Mr. Raj Kumar Choudhary",
       "designation": "Junior Research Fellow (JRF)",
-      "password_hash": "$2b$11$y9UrGoTkeabavxrpkzie0uKkvhxafJF.fnmgIIHgyhyrw9rL.8mNu",
+      "password_hash": "$2b$11$ehpE/gM9S35dKW0/PNnWzeQTjUDZZ8blhTC4gYO6cHl1tnL40iYk2",
       "pw_version": 1,
       "role": "staff",
       "emp_code": "",
@@ -54,7 +54,7 @@
       "photo_version": 0,
       "active": true,
       "must_change_pw": true,
-      "created_at": "2026-11-16T06:36:13.378Z",
+      "created_at": "2026-11-16T06:51:29.179Z",
       "last_login": null
     },
     {
@@ -62,7 +62,7 @@
       "username": "gaurav",
       "name": "Mr. Gaurav Kumar",
       "designation": "Scientific Assistant",
-      "password_hash": "$2b$11$xzXeP4vSjsYTLttKzREXiO..w1./g6kz38mTmUH9cNI8pTFN4p/eu",
+      "password_hash": "$2b$11$LDI0607CAqqG3XyVC3hia.98QBll/obbUoG2tUNuWic25xoCYlhRa",
       "pw_version": 1,
       "role": "staff",
       "emp_code": "",
@@ -73,7 +73,7 @@
       "photo_version": 0,
       "active": true,
       "must_change_pw": true,
-      "created_at": "2026-11-16T06:36:13.378Z",
+      "created_at": "2026-11-16T06:51:29.179Z",
       "last_login": null
     },
     {
@@ -81,7 +81,7 @@
       "username": "anas",
       "name": "Mr. Mohd Anas Khan",
       "designation": "Project Associate 2",
-      "password_hash": "$2b$11$IEjgceCluE1ySpQrhqop..DMADKPdL5S03n8FL9Gm24QwlemyAwWS",
+      "password_hash": "$2b$11$gjGDMNoNGYDvJo3Qm.Wuwu1DK/cXi25T9X1dcPxlC6qgvSgZVtuHK",
       "pw_version": 1,
       "role": "staff",
       "emp_code": "",
@@ -92,7 +92,7 @@
       "photo_version": 0,
       "active": true,
       "must_change_pw": true,
-      "created_at": "2026-11-16T06:36:13.378Z",
+      "created_at": "2026-11-16T06:51:29.179Z",
       "last_login": null
     },
     {
@@ -100,7 +100,7 @@
       "username": "akash",
       "name": "Dr. Akash Tiwari",
       "designation": "Research Associate",
-      "password_hash": "$2b$11$Mrg6g79xzxaaTV38KjfLPubYk1.IFLBjMbA/IqVLH1uXp7ol7fere",
+      "password_hash": "$2b$11$zQ9ouAfCNMZKzSAEplIE3edwqHxbSYNQinECSIYt6fIt3jAzkzD/u",
       "pw_version": 1,
       "role": "staff",
       "emp_code": "",
@@ -111,38 +111,16 @@
       "photo_version": 0,
       "active": true,
       "must_change_pw": true,
-      "created_at": "2026-11-16T06:36:13.378Z",
+      "created_at": "2026-11-16T06:51:29.179Z",
       "last_login": null
     }
   ],
   "entries": [],
   "login_failures": [],
-  "audit_log": [
-    {
-      "id": 1,
-      "at": "2026-11-16T06:41:17.153Z",
-      "user_id": 1,
-      "action": "login",
-      "detail": ""
-    },
-    {
-      "id": 2,
-      "at": "2026-11-16T06:41:39.240Z",
-      "user_id": 1,
-      "action": "password_changed",
-      "detail": ""
-    },
-    {
-      "id": 3,
-      "at": "2026-11-16T06:41:58.242Z",
-      "user_id": 1,
-      "action": "login",
-      "detail": ""
-    }
-  ],
+  "audit_log": [],
   "seq": {
     "users": 6,
     "entries": 0,
-    "audit": 3
+    "audit": 0
   }
 }
