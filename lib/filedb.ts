@@ -59,10 +59,10 @@ const G = globalThis as unknown as { _slcrDb?: DbState; _slcrLock: Promise<void>
 if (!G._slcrLock) G._slcrLock = Promise.resolve();
 
 function loadDb(): DbState {
-  if (!existsSync(DB_PATH)) {
+  if (!existsSync(/*turbopackIgnore: true*/ DB_PATH)) {
     return { users: [], entries: [], login_failures: [], audit_log: [], seq: { users: 0, entries: 0, audit: 0 } };
   }
-  return JSON.parse(readFileSync(DB_PATH, "utf-8")) as DbState;
+  return JSON.parse(readFileSync(/*turbopackIgnore: true*/ DB_PATH, "utf-8")) as DbState;
 }
 
 function getDb(): DbState {
@@ -71,8 +71,8 @@ function getDb(): DbState {
 }
 
 function saveDb(): void {
-  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(DB_PATH, JSON.stringify(G._slcrDb!, null, 2), "utf-8");
+  if (!existsSync(/*turbopackIgnore: true*/ DATA_DIR)) mkdirSync(/*turbopackIgnore: true*/ DATA_DIR, { recursive: true });
+  writeFileSync(/*turbopackIgnore: true*/ DB_PATH, JSON.stringify(G._slcrDb!, null, 2), "utf-8");
 }
 
 async function write(fn: () => void): Promise<void> {
