@@ -21,6 +21,8 @@ create table if not exists public.users (
   photo_version   integer not null default 0,
   active          boolean not null default true,
   must_change_pw  boolean not null default true,
+  reset_hash      text,
+  reset_expires   timestamptz,
   created_at      timestamptz not null default now(),
   last_login      timestamptz
 );
@@ -72,7 +74,8 @@ alter table public.audit_log      enable row level security;
 create or replace function public.set_password(p_id bigint, p_hash text, p_must_change boolean)
 returns void language sql security definer set search_path = public as $$
   update public.users
-     set password_hash = p_hash, must_change_pw = p_must_change, pw_version = pw_version + 1
+     set password_hash = p_hash, must_change_pw = p_must_change, pw_version = pw_version + 1,
+         reset_hash = null, reset_expires = null
    where id = p_id;
 $$;
 

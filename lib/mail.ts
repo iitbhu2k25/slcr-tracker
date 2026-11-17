@@ -37,6 +37,8 @@ export type MailResult = { sent: true } | { sent: false; error: string };
 /** Emails a person their username and one-time password. Never throws. */
 export async function sendCredentialsEmail(opts: {
   to: string; name: string; username: string; password: string; role: "admin" | "staff"; reset?: boolean;
+  /** Self-service "forgot password": minutes until the one-time password expires. */
+  forgotMinutes?: number;
 }): Promise<MailResult> {
   const t = transporter();
   if (!t) return { sent: false, error: "Email is not configured (MAIL_USERNAME / MAIL_PASSWORD)." };
@@ -44,10 +46,12 @@ export async function sendCredentialsEmail(opts: {
     const url = await appUrl();
     const loginUrl = `${url}/login`;
     const roleText = opts.role === "admin" ? "an administrator" : "a staff member";
-    const intro = opts.reset
+    const intro = opts.forgotMinutes
+      ? `We received a request to reset your password for the ${APP_NAME}. Use the one-time password below within ${opts.forgotMinutes} minutes. If you did not ask for this, ignore this email: your current password still works.`
+      : opts.reset
       ? `Your password for the ${APP_NAME} has been reset by the administrator.`
       : `An account has been created for you on the ${APP_NAME} as ${roleText}.`;
-    const subject = opts.reset ? `${APP_NAME}: your password has been reset` : `${APP_NAME}: your account details`;
+    const subject = opts.forgotMinutes ? `${APP_NAME}: your one-time password` : opts.reset ? `${APP_NAME}: your password has been reset` : `${APP_NAME}: your account details`;
 
     const text = [
       `Dear ${opts.name},`,

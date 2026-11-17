@@ -1,23 +1,24 @@
-import { Mark } from "@/components/ui";
 import { APP_NAME, INSTITUTE, LAB, PROJECT } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="auth wrap">
-      <div className="panel">
-        <div className="brand">
-          <span className="mark"><Mark /></span>
-          <span>
-            <span className="eyebrow">{LAB}</span>
-            <br />
-            <span className="proj">{APP_NAME}</span>
-          </span>
-        </div>
-        <p className="muted small">{PROJECT} · {INSTITUTE}</p>
+    <main className="auth">
+      <div className="auth-card">
+        <header className="auth-head">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="auth-logo" src="/slcr-logo.png" alt="SLCR" width={238} height={65} />
+          <h1>{APP_NAME}</h1>
+          <p className="muted small">{LAB}</p>
+        </header>
         {children}
       </div>
-    </div>
+      <footer className="auth-foot muted">
+        {PROJECT}
+        <br />
+        {INSTITUTE}
+      </footer>
+    </main>
   );
 }

@@ -13,7 +13,10 @@ import {
   clearLoginFailuresByPrefix,
   deleteEntry,
   findEntryById,
+  findUserByEmail,
   findUserByUsername,
+  setPendingReset,
+  clearPendingReset,
   getAllUserNames,
   insertEntry,
   insertUser as dbInsertUser,
@@ -61,22 +64,58 @@ export async function setupAction(_prev: FormState, fd: FormData): Promise<FormS
 }
 
 export async function loginAction(_prev: FormState, fd: FormData): Promise<FormState> {
-  const username = str(fd, "username", 60).toLowerCase();
+  const username = str(fd, "username", 120).toLowerCase();
   const password = String(fd.get("password") ?? "");
   const key = `${username}|${await clientIp()}`;
   if (await isLockedOut(key)) {
     return { error: `Too many failed attempts. Wait ${LOCKOUT_MINUTES} minutes and try again, or ask the administrator to reset your password.`, values: { username } };
   }
-  const row = await findUserByUsername(username);
-  if (row && row.active && (await verifyPassword(password, row.password_hash))) {
-    await clearFailures(key);
-    await updateUserLogin(row.id);
-    await audit(row.id, "login");
-    await createSession((await findUserById(row.id))!);
-    redirect("/");
+  const row = username.includes("@") ? await findUserByEmail(username) : await findUserByUsername(username);
+  if (row && row.active) {
+    let ok = await verifyPassword(password, row.password_hash);
+    if (ok && row.reset_hash) await clearPendingReset(row.id); // they remembered it: cancel the emailed one
+    if (!ok && row.reset_hash && row.reset_expires && new Date(row.reset_expires) > new Date()
+        && (await verifyPassword(password, row.reset_hash))) {
+      // Emailed one-time password: it becomes the password and must be changed right away.
+      await updatePassword(row.id, row.reset_hash, true);
+      await audit(row.id, "forgot_password_used");
+      ok = true;
+    }
+    if (ok) {
+      await clearFailures(key);
+      await updateUserLogin(row.id);
+      await audit(row.id, "login");
+      await createSession((await findUserById(row.id))!);
+      redirect("/");
+    }
   }
   await recordFailure(key);
-  return { error: "The username or password is incorrect.", values: { username } };
+  return { error: "The username/email or password is incorrect.", values: { username } };
+}
+
+const FORGOT_MINUTES = 30;
+
+/** Self-service reset: emails a one-time password. The reply never reveals whether an account exists. */
+export async function forgotPasswordAction(_prev: FormState, fd: FormData): Promise<FormState> {
+  const ident = str(fd, "username", 120).toLowerCase();
+  if (!ident) return { error: "Enter your username or email." };
+  const done: FormState = { values: { done: "1", username: ident } };
+  const ipKey = `forgot|${await clientIp()}`;
+  if (await isLockedOut(ipKey)) {
+    return { error: `Too many requests. Wait ${LOCKOUT_MINUTES} minutes and try again.`, values: { username: ident } };
+  }
+  await recordFailure(ipKey); // counts requests per IP for rate limiting
+  const row = ident.includes("@") ? await findUserByEmail(ident) : await findUserByUsername(ident);
+  if (!row || !row.active || !row.email) return done;
+  // At most one email per account every 2 minutes.
+  if (row.reset_expires && new Date(row.reset_expires).getTime() - Date.now() > (FORGOT_MINUTES - 2) * 60000) return done;
+  const password = tempPassword();
+  await setPendingReset(row.id, await hashPassword(password), new Date(Date.now() + FORGOT_MINUTES * 60000));
+  const r = await sendCredentialsEmail({
+    to: row.email, name: row.name, username: row.username, password, role: row.role, forgotMinutes: FORGOT_MINUTES,
+  });
+  await audit(row.id, "forgot_password_requested", r.sent ? "emailed" : `email failed: ${r.error}`);
+  return done;
 }
 
 export async function logoutAction() {

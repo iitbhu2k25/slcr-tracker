@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
-  changePasswordAction, createRosterAction, createUserAction, loginAction, resetPasswordAction, saveEntryAction,
+  changePasswordAction, createRosterAction, createUserAction, forgotPasswordAction, loginAction, resetPasswordAction, saveEntryAction,
   saveProfileAction, setupAction, type CredState, type FormState,
 } from "@/app/actions";
 import { CATEGORIES, DESIGNATIONS, LOCATIONS, MIN_PASSWORD_LENGTH, STATUSES } from "@/lib/config";
@@ -121,12 +121,41 @@ export function SetupForm() {
   );
 }
 
+export function ForgotForm() {
+  const [state, action] = useActionState(forgotPasswordAction, {} as FormState);
+  if (state.values?.done) {
+    return (
+      <div className="stack" role="status">
+        <h2>Check your email</h2>
+        <p className="small">
+          If an account matches <strong>{state.values.username}</strong> and has an email address, a one-time password has
+          been sent to it. It works for 30 minutes. Sign in with it and you will be asked to choose a new password.
+        </p>
+        <p className="small muted">Didn&apos;t get it? Check your spam folder, or ask an administrator to reset your password.</p>
+        <Link className="btn primary" href="/login">Go to sign in</Link>
+      </div>
+    );
+  }
+  return (
+    <form action={action} className="stack">
+      <div>
+        <h2>Forgot your password?</h2>
+        <p className="small muted">Enter your username or email. We&apos;ll email you a one-time password.</p>
+      </div>
+      <ErrorBox state={state} />
+      <label htmlFor="username">Username or email
+        <input id="username" name="username" autoComplete="username" autoCapitalize="none" required autoFocus defaultValue={state.values?.username ?? ""} /></label>
+      <SubmitButton>Email me a one-time password</SubmitButton>
+    </form>
+  );
+}
+
 export function LoginForm() {
   const [state, action] = useActionState(loginAction, {} as FormState);
   return (
     <form action={action} className="stack">
       <ErrorBox state={state} />
-      <label htmlFor="username">Username
+      <label htmlFor="username">Username or email
         <input id="username" name="username" autoComplete="username" autoCapitalize="none" required autoFocus defaultValue={state.values?.username ?? ""} /></label>
       <label htmlFor="password">Password
         <input id="password" name="password" type="password" autoComplete="current-password" required /></label>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/forms";
 import { Flash } from "@/components/ui";
@@ -15,7 +16,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <>
       <Flash m={param(sp, "m")} />
       <LoginForm />
-      <p className="muted small">Forgotten your password? Ask the Principal Investigator to reset it.</p>
+      <p className="muted small"><Link href="/forgot">Forgot your password?</Link></p>
     </>
   );
 }

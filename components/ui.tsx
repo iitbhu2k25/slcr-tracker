@@ -3,13 +3,8 @@ import { MESSAGES } from "@/lib/messages";
 import { PRESETS, fmtDate, hrs, isISODate } from "@/lib/dates";
 
 export function Mark() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
-      <path d="M2 9c3.5-3 7-3 10.5 0S19.5 12 24 9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      <path d="M2 15c3.5-3 7-3 10.5 0S19.5 18 24 15" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" opacity=".75" />
-      <path d="M2 21c3.5-3 7-3 10.5 0S19.5 24 24 21" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" opacity=".5" />
-    </svg>
-  );
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/slcr-logo.png" alt="SLCR" width={238} height={65} />;
 }
 
 export function initials(name: string): string {

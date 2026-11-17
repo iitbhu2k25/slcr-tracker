@@ -65,8 +65,29 @@ export async function findUserById(id: number): Promise<User | null> {
   return row ? toUser(row as unknown as UserRow) : null;
 }
 
-export async function findUserByUsername(username: string): Promise<{ id: number; password_hash: string; active: boolean } | null> {
-  return check(await sb().from("users").select("id,password_hash,active").eq("username", username).maybeSingle());
+export type LoginRow = {
+  id: number; password_hash: string; active: boolean; name: string; username: string; email: string;
+  role: "admin" | "staff"; reset_hash: string | null; reset_expires: string | null;
+};
+const LOGIN_COLS = "id,password_hash,active,name,username,email,role,reset_hash,reset_expires";
+
+export async function findUserByUsername(username: string): Promise<LoginRow | null> {
+  return check(await sb().from("users").select(LOGIN_COLS).eq("username", username).maybeSingle()) as LoginRow | null;
+}
+
+/** Sign-in by email: only when exactly one account uses that address. */
+export async function findUserByEmail(email: string): Promise<LoginRow | null> {
+  const rows = check(await sb().from("users").select(LOGIN_COLS).ilike("email", email.replace(/[\\%_]/g, (c) => "\\" + c)).limit(2));
+  return rows && rows.length === 1 ? (rows[0] as LoginRow) : null;
+}
+
+/** Stores a pending emailed one-time password. The current password keeps working until this one is used. */
+export async function setPendingReset(id: number, hash: string, expires: Date): Promise<void> {
+  check(await sb().from("users").update({ reset_hash: hash, reset_expires: expires.toISOString() }).eq("id", id));
+}
+
+export async function clearPendingReset(id: number): Promise<void> {
+  check(await sb().from("users").update({ reset_hash: null, reset_expires: null }).eq("id", id));
 }
 
 export async function insertUser(data: { username: string; password_hash: string; role: "admin" | "staff"; name: string; designation: string; email?: string; must_change_pw: boolean }): Promise<number> {
