@@ -55,7 +55,7 @@ export default async function ManageAccount({ params, searchParams }: {
           {user.last_login && <> · last sign-in {fmtStamp(user.last_login)}</>}
         </p>
         <div className="stack">
-          <ResetPasswordForm userId={user.id} />
+          <ResetPasswordForm userId={user.id} email={user.email} />
           <div className="actions">
             {user.id !== me.id && (
               <form action={toggleActiveAction} className="inline">

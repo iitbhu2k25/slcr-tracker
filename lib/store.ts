@@ -69,7 +69,7 @@ export async function findUserByUsername(username: string): Promise<{ id: number
   return check(await sb().from("users").select("id,password_hash,active").eq("username", username).maybeSingle());
 }
 
-export async function insertUser(data: { username: string; password_hash: string; role: "admin" | "staff"; name: string; designation: string; must_change_pw: boolean }): Promise<number> {
+export async function insertUser(data: { username: string; password_hash: string; role: "admin" | "staff"; name: string; designation: string; email?: string; must_change_pw: boolean }): Promise<number> {
   const row = check(await sb().from("users").insert(data).select("id").single());
   return (row as { id: number }).id;
 }

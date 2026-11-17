@@ -72,6 +72,11 @@ Each seeded account gets a one-time temporary password. At first sign-in the per
 the administrator uses **Reset password**, which issues a new one-time password the same way.
 (Skip `npm run seed` if you would rather create the first admin yourself on `/setup`.)
 
+**Emailing account details.** When an admin adds a staff member or another administrator, the email
+address is required and the username and one-time password are emailed to that person. A password
+reset is emailed the same way. Set `MAIL_USERNAME` (a Gmail address), `MAIL_PASSWORD` (a Google
+*App Password*) and `APP_URL` (the public address used in the sign-in link) in `.env.local` and on Vercel.
+
 For local testing over plain http with `npm run build && npm start`, also set `INSECURE_COOKIES=1`.
 
 ## Tests

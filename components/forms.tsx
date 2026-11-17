@@ -38,16 +38,25 @@ export function CredentialsBox({ state, title }: { state: CredState; title: stri
   return (
     <div className="creds" role="status">
       <strong>{title}</strong>
-      <span>Give each person their details privately (in person or a direct message). These passwords are shown only once; each person must change theirs at first sign-in.</span>
+      <span>
+        {state.credentials.every((c) => c.mail === "sent")
+          ? "The sign-in details have been emailed. They are also shown here once, in case the email doesn't arrive."
+          : "Give each person their details privately (in person or a direct message). These passwords are shown only once; each person must change theirs at first sign-in."}
+      </span>
       <div className="table-wrap">
         <table className="list">
-          <thead><tr><th>Name</th><th>Username</th><th>Temporary password</th></tr></thead>
+          <thead><tr><th>Name</th><th>Username</th><th>Temporary password</th><th>Email</th></tr></thead>
           <tbody>
             {state.credentials.map((c) => (
               <tr key={c.username}>
                 <td>{c.name}</td>
                 <td><code>{c.username}</code></td>
                 <td><code>{c.password}</code></td>
+                <td className="small">
+                  {c.mail === "sent" ? <span className="pill ok">Sent to {c.email}</span>
+                    : c.mail === "failed" ? <span className="pill bad" title={c.mailError}>Not sent: give it by hand</span>
+                    : <span className="muted">No email on file</span>}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -272,24 +281,31 @@ export function ProfileForm({ user, today, avatar }: {
 
 export function AddUserForm() {
   const [state, action] = useActionState(createUserAction, {} as CredState);
+  const [role, setRole] = useState<"staff" | "admin">("staff");
+  // A new key after each success clears the form for the next person.
+  const formKey = state.credentials?.[0]?.username ?? "new";
   return (
     <div className="stack">
-      <CredentialsBox state={state} title="Account created" />
-      <form className="panel stack" action={action}>
-        <h2>Add an account</h2>
+      <CredentialsBox state={state} title={state.credentials?.[0] ? `Account created for ${state.credentials[0].name}` : "Account created"} />
+      <form key={formKey} className="panel stack" action={action}>
+        <h2>Add a staff member or administrator</h2>
         <ErrorBox state={state} />
         <div className="grid2">
+          <label htmlFor="role">Account type <span className="req">*</span><select id="role" name="role" value={role} onChange={(e) => setRole(e.target.value as "staff" | "admin")}>
+            <option value="staff">Staff: sees only their own records</option>
+            <option value="admin">Administrator: sees everyone and manages accounts (e.g. Co-PI)</option>
+          </select></label>
           <label htmlFor="name">Full name with title <span className="req">*</span><input id="name" name="name" required placeholder="e.g. Mr. Gaurav Kumar" /></label>
+          <label htmlFor="email">Email <span className="req">*</span><span className="hint">The username and one-time password are sent here</span>
+            <input id="email" name="email" type="email" required autoCapitalize="none" placeholder="e.g. gaurav@iitbhu.ac.in" /></label>
           <label htmlFor="username">Username <span className="req">*</span><span className="hint">Letters, numbers, dots or underscores</span>
             <input id="username" name="username" required autoCapitalize="none" placeholder="e.g. gaurav" /></label>
-          <label htmlFor="designation">Designation<select id="designation" name="designation">{DESIGNATIONS.map((d) => <option key={d}>{d}</option>)}</select></label>
-          <label htmlFor="role">Role<select id="role" name="role">
-            <option value="staff">Staff: sees only their own records</option>
-            <option value="admin">Administrator: sees everyone (e.g. Co-PI)</option>
-          </select></label>
+          {role === "staff"
+            ? <label htmlFor="designation">Designation<select id="designation" name="designation">{DESIGNATIONS.map((d) => <option key={d}>{d}</option>)}</select></label>
+            : <label htmlFor="designation">Designation<input id="designation" name="designation" placeholder="e.g. Co-Principal Investigator" /></label>}
         </div>
-        <div className="actions"><SubmitButton>Create account</SubmitButton></div>
-        <p className="muted small">A temporary password is generated and shown once after you create the account.</p>
+        <div className="actions"><SubmitButton>{role === "admin" ? "Create administrator and send email" : "Create account and send email"}</SubmitButton></div>
+        <p className="muted small">A one-time password is generated and emailed to the person. At first sign-in they must choose their own new password.</p>
       </form>
     </div>
   );
@@ -309,7 +325,7 @@ export function RosterButton({ missing }: { missing: string[] }) {
   );
 }
 
-export function ResetPasswordForm({ userId }: { userId: number }) {
+export function ResetPasswordForm({ userId, email }: { userId: number; email: string }) {
   const [state, action] = useActionState(resetPasswordAction, {} as CredState);
   return (
     <>
@@ -317,8 +333,12 @@ export function ResetPasswordForm({ userId }: { userId: number }) {
       <ErrorBox state={state} />
       <form action={action} className="inline">
         <input type="hidden" name="user_id" value={userId} />
-        <SubmitButton className="btn">Reset password</SubmitButton>
+        <SubmitButton className="btn">{email ? "Reset password and email it" : "Reset password"}</SubmitButton>
       </form>
+      <p className="muted small">
+        {email ? <>The new one-time password will be emailed to <strong>{email}</strong>.</>
+          : "No email on file: add one under Details above to have the new password emailed."}
+      </p>
     </>
   );
 }

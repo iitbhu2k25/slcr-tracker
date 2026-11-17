@@ -27,11 +27,15 @@ import {
   usernameExists,
 } from "@/lib/store";
 import { isISODate, todayISO } from "@/lib/dates";
+import { isValidEmail, sendCredentialsEmail } from "@/lib/mail";
 import { safeNext, withMsg } from "@/lib/messages";
 import type { Entry } from "@/lib/types";
 
 export type FormState = { error?: string; errors?: string[]; values?: Record<string, string> };
-export type Credentials = { name: string; username: string; password: string };
+export type Credentials = {
+  name: string; username: string; password: string;
+  email?: string; mail?: "sent" | "failed" | "none"; mailError?: string;
+};
 export type CredState = { error?: string; credentials?: Credentials[] };
 
 const str = (fd: FormData, k: string, max = 4000) => String(fd.get(k) ?? "").trim().slice(0, max);
@@ -223,11 +227,18 @@ export async function reviewAction(fd: FormData) {
 
 /* ------------------------------------------------------------------ admin: accounts */
 
-async function insertUserAccount(username: string, name: string, role: "admin" | "staff", designation: string): Promise<Credentials | null> {
+async function insertUserAccount(username: string, name: string, role: "admin" | "staff", designation: string, email = ""): Promise<Credentials | null> {
   if (await usernameExists(username)) return null;
   const password = tempPassword();
-  await dbInsertUser({ username, password_hash: await hashPassword(password), role, name, designation, must_change_pw: true });
-  return { name, username, password };
+  await dbInsertUser({ username, password_hash: await hashPassword(password), role, name, designation, email, must_change_pw: true });
+  return { name, username, password, email, mail: "none" };
+}
+
+/** Emails the credentials if the person has an address; records the outcome on the credentials. */
+async function mailCredentials(c: Credentials, role: "admin" | "staff", reset = false): Promise<Credentials> {
+  if (!c.email) return { ...c, mail: "none" };
+  const r = await sendCredentialsEmail({ to: c.email, name: c.name, username: c.username, password: c.password, role, reset });
+  return r.sent ? { ...c, mail: "sent" } : { ...c, mail: "failed", mailError: r.error };
 }
 
 export async function createUserAction(_prev: CredState, fd: FormData): Promise<CredState> {
@@ -235,12 +246,15 @@ export async function createUserAction(_prev: CredState, fd: FormData): Promise<
   const username = str(fd, "username", 40).toLowerCase();
   const name = str(fd, "name", 120);
   const role = fd.get("role") === "admin" ? "admin" : "staff";
-  const designation = str(fd, "designation", 120);
+  const designation = role === "admin" && !fd.get("designation") ? "Administrator" : str(fd, "designation", 120);
+  const email = str(fd, "email", 120).toLowerCase();
   if (!/^[a-z0-9._]{2,40}$/.test(username)) return { error: "Usernames need at least 2 characters: letters, numbers, dots or underscores." };
   if (name.length < 3) return { error: "Enter the person's full name." };
-  const cred = await insertUserAccount(username, name, role, designation);
-  if (!cred) return { error: `The username "${username}" is already taken.` };
-  await audit(admin.id, "user_created", `${username} ${role}`);
+  if (!isValidEmail(email)) return { error: "Enter a valid email address. The sign-in details are sent there." };
+  const created = await insertUserAccount(username, name, role, designation, email);
+  if (!created) return { error: `The username "${username}" is already taken.` };
+  const cred = await mailCredentials(created, role);
+  await audit(admin.id, "user_created", `${username} ${role} ${cred.mail === "sent" ? "emailed" : "not emailed"}`);
   revalidatePath("/", "layout");
   return { credentials: [cred] };
 }
@@ -289,8 +303,9 @@ export async function resetPasswordAction(_prev: CredState, fd: FormData): Promi
   const password = tempPassword();
   await updatePassword(target.id, await hashPassword(password), true);
   await clearLoginFailuresByPrefix(target.username + "|");
-  await audit(admin.id, "password_reset", target.username);
-  return { credentials: [{ name: target.name, username: target.username, password }] };
+  const cred = await mailCredentials({ name: target.name, username: target.username, password, email: target.email }, target.role, true);
+  await audit(admin.id, "password_reset", `${target.username} ${cred.mail === "sent" ? "emailed" : "not emailed"}`);
+  return { credentials: [cred] };
 }
 
 export async function toggleActiveAction(fd: FormData) {
